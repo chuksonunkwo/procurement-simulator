@@ -1,6 +1,7 @@
 import streamlit as st
 import sqlite3
 import time
+import os
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
@@ -9,6 +10,7 @@ from pydantic import BaseModel
 st.set_page_config(page_title="Procurement Pro", layout="wide", page_icon="💼")
 
 # 🔒 SECURITY: LOGIN SYSTEM
+# In a real app, use a database or environment variables for this.
 VALID_PASSWORDS = ["negotiate2024", "procurement_master", "demo_user"]
 
 def check_password():
@@ -56,15 +58,19 @@ def get_client():
 client = get_client()
 
 # --- 3. DATABASE LAYER ---
-DB_FILE = 'procurement_saas.db'
+DB_FILE = 'procurement_saas_v2.db' # V2 forces a fresh database build
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("DROP TABLE IF EXISTS scenarios")
     c.execute('''CREATE TABLE scenarios (
-        id INTEGER PRIMARY KEY, title TEXT, category TEXT, 
-        difficulty TEXT, user_brief TEXT, system_persona TEXT
+        id INTEGER PRIMARY KEY, 
+        title TEXT, 
+        category TEXT, 
+        difficulty TEXT, 
+        user_brief TEXT, 
+        system_persona TEXT
     )''')
     
     data = [
@@ -81,7 +87,9 @@ def init_db():
          "**Role:** Logistics Supt.\n**Goal:** Pay $0. Crane failure.", 
          "**Role:** Shipowner.\n**Pressure:** Blame port congestion.")
     ]
-    c.executemany('INSERT INTO scenarios (title, category, difficulty, user_brief, system_persona) VALUES (?,?,?,?,?,?)', data)
+    
+    # ✅ FIX IS HERE: Exactly 5 question marks for 5 columns
+    c.executemany('INSERT INTO scenarios (title, category, difficulty, user_brief, system_persona) VALUES (?,?,?,?,?)', data)
     conn.commit()
 
 if 'db_initialized' not in st.session_state:
