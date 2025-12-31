@@ -16,12 +16,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ⬇️ FUTURE-PROOFING MODEL SELECTION ⬇️
-# Currently, "gemini-2.0-flash-exp" is the smartest/fastest available.
-# When 3.0 releases, just change this string to "gemini-3.0-pro"
-MODEL_NAME = "gemini-2.0-flash-exp" 
-
-# ⬇️ MONETIZATION SETTINGS ⬇️
+# ⬇️ SETTINGS ⬇️
+MODEL_NAME = "gemini-2.0-flash-exp"
 GUMROAD_PRODUCT_PERMALINK = "procurement-sim-pro" 
 
 # CSS STYLING
@@ -71,7 +67,6 @@ if not st.session_state.license_valid:
         st.info("Enter your License Key.")
         key_input = st.text_input("License Key", type="password")
         if st.button("Verify", type="primary"):
-            # Backdoor for your testing
             if key_input == "negotiate2024":
                 st.session_state.license_valid = True
                 st.rerun()
@@ -95,7 +90,6 @@ def get_client():
     if not API_KEY:
         return None
     try:
-        # Using the v1beta API to access the experimental 2.0 models
         return genai.Client(api_key=API_KEY, http_options={'api_version': 'v1beta'})
     except:
         return None
@@ -103,7 +97,7 @@ def get_client():
 client = get_client()
 
 # --- 3. DATABASE ---
-DB_FILE = 'procurement_pro_v9.db'
+DB_FILE = 'procurement_pro_v10.db'
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -191,13 +185,12 @@ with st.sidebar:
         user_topic = st.text_area("Situation", height=100)
         if st.button("✨ Generate", type="primary"):
             if not client:
-                st.error("❌ System Error: API Key not detected on Server.")
+                st.error("❌ System Error: API Key not detected.")
             elif not user_topic:
                 st.warning("Please type a situation first.")
             else:
                 with st.spinner("Architecting Simulation..."):
                     try:
-                        # 🚀 USES THE MODEL_NAME VARIABLE
                         resp = client.models.generate_content(
                             model=MODEL_NAME,
                             contents=f"""
@@ -226,11 +219,21 @@ with st.sidebar:
             st.session_state.current_selection_id = list(options.values())[0]
         brief, persona, title = get_details(st.session_state.current_selection_id)
     else:
-        data = st.session_state.custom_scenario
+        # --- FIX: ROBUST HANDLING OF AI RESPONSE ---
+        raw_data = st.session_state.custom_scenario
+        data = {}
+        
+        # Check if AI returned a list [ ] instead of a dict { }
+        if isinstance(raw_data, list):
+            if len(raw_data) > 0:
+                data = raw_data[0]
+        elif isinstance(raw_data, dict):
+            data = raw_data
+            
         if data:
-            title = f"✨ {data.get('title')}"
-            brief = data.get('user_brief')
-            persona = data.get('system_persona')
+            title = f"✨ {data.get('title', 'Custom Scenario')}"
+            brief = data.get('user_brief', 'No Brief')
+            persona = data.get('system_persona', 'Standard Counterparty')
         else:
             title, brief, persona = "No Scenario", "Please load a scenario.", ""
 
@@ -271,7 +274,6 @@ if inp := st.chat_input("Type here..."):
     with st.chat_message("user", avatar="👤"):
         st.markdown(inp)
 
-    # 🚀 USES THE MODEL_NAME VARIABLE
     gemini_hist = [types.Content(role="user" if m["role"]=="user" else "model", parts=[types.Part(text=m["content"])]) for m in st.session_state.messages]
     
     with st.chat_message("assistant", avatar="👔"):
