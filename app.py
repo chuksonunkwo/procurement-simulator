@@ -148,7 +148,7 @@ def get_details(sid):
 
 # --- 4. PROFESSIONAL UI ---
 with st.sidebar:
-    st.markdown("## 🏢 Mission Control")
+    st.markdown("## 🏢 Procurement Negotiation Simulator")
     if st.button("🚪 Log Out", use_container_width=True):
         st.session_state.password_correct = False
         st.rerun()
