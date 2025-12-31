@@ -3,6 +3,7 @@ import sqlite3
 import time
 import os
 import json
+import requests
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
@@ -15,83 +16,95 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CUSTOM CSS: Refined for better alignment and visibility
+# ⬇️ PASTE YOUR GUMROAD PERMALINK HERE ⬇️
+GUMROAD_PRODUCT_PERMALINK = "YOUR_PERMALINK_GOES_HERE" 
+
+# CUSTOM CSS
 st.markdown("""
     <style>
-    /* 1. Sidebar Title - Adjusted size to prevent awkward wrapping */
     .sidebar-title {
-        font-size: 32px !important; /* Reduced from 42px for better fit */
+        font-size: 32px !important;
         font-weight: 800 !important;
         color: #2C3E50 !important;
         margin-bottom: 20px !important;
         line-height: 1.2 !important;
         word-wrap: break-word !important;
     }
-    
-    /* 2. Main Scenario Title - Added padding to ensure visibility */
     .main-scenario-title {
-        font-size: 36px !important; /* Increased visibility */
+        font-size: 36px !important;
         font-weight: 700 !important;
         color: #2C3E50 !important;
         border-bottom: 2px solid #eee;
         padding-bottom: 15px;
-        margin-top: 20px !important; /* Pushes title down so it's not cut off */
+        margin-top: 20px !important;
     }
-    
-    /* General Cleanup */
-    .block-container { 
-        padding-top: 3rem !important; /* Extra padding at top of page */
-    }
+    .block-container { padding-top: 3rem !important; }
     .stChatInput { border-radius: 10px; }
     div[data-testid="stExpander"] { border: 1px solid #ddd; border-radius: 8px; }
-    
-    /* Fix for sidebar text alignment */
-    section[data-testid="stSidebar"] .block-container {
-        padding-top: 2rem;
-    }
+    section[data-testid="stSidebar"] .block-container { padding-top: 2rem; }
     </style>
 """, unsafe_allow_html=True)
 
-# 🔒 SECURITY: LOGIN
-VALID_PASSWORDS = ["negotiate2024", "procurement_master", "demo_user"]
+# 🔒 SECURITY: GUMROAD LICENSE CHECK
+def check_license(key):
+    try:
+        response = requests.post(
+            "https://api.gumroad.com/v2/licenses/verify",
+            data={
+                "product_permalink": GUMROAD_PRODUCT_PERMALINK,
+                "license_key": key.strip()
+            }
+        )
+        data = response.json()
+        return data.get("success", False)
+    except:
+        return False
 
-def check_password():
-    if "password_correct" not in st.session_state:
-        st.session_state.password_correct = False
+def login_screen():
+    if "license_valid" not in st.session_state:
+        st.session_state.license_valid = False
 
-    if st.session_state.password_correct:
+    if st.session_state.license_valid:
         return True
 
-    # Professional Login Screen
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         st.markdown("## 🔒 Professional Login")
-        st.info("Enter access code to initialize the simulation.")
-        password = st.text_input("Access Code", type="password")
-        if st.button("Authenticate", type="primary"):
-            if password in VALID_PASSWORDS:
-                st.session_state.password_correct = True
+        st.info("Enter the License Key sent to your email by Gumroad.")
+        
+        # Backdoor for testing (You can remove 'negotiate2024' later if you want strict security)
+        license_key = st.text_input("License Key", type="password")
+        
+        if st.button("Verify License", type="primary"):
+            if license_key == "negotiate2024": # Developer Backdoor
+                st.session_state.license_valid = True
+                st.rerun()
+            elif check_license(license_key):
+                st.session_state.license_valid = True
+                st.success("✅ License Verified!")
+                time.sleep(1)
                 st.rerun()
             else:
-                st.error("❌ Access Denied.")
+                st.error("❌ Invalid License Key.")
     return False
 
-if not check_password():
+if not login_screen():
     st.stop()
 
-# --- 2. AI CONNECTION ---
+# --- 2. AI CONNECTION (FIXED FOR RENDER) ---
 try:
-    PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
-    LOCATION = os.environ.get("GOOGLE_LOCATION", "us-central1")
+    # We now look for the API Key instead of Project ID
+    API_KEY = os.environ.get("GEMINI_API_KEY")
 except:
-    PROJECT_ID = None
+    API_KEY = None
 
 @st.cache_resource
 def get_client():
-    if not PROJECT_ID:
+    if not API_KEY:
         return None
     try:
-        return genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
+        # Switch to API Key authentication which works on Render
+        return genai.Client(api_key=API_KEY)
     except Exception as e:
         return None
 
@@ -109,7 +122,6 @@ def init_db():
         difficulty TEXT, user_brief TEXT, system_persona TEXT
     )''')
     
-    # 10 PRESET SCENARIOS
     data = [
         ("EPC Steel Variation Claim", "Construction", "Hard",
          "**Role:** Project Director.\n**Situation:** Contractor claims $5M for steel price hikes.\n**Goal:** Reject the claim completely. Protect the schedule.", 
@@ -158,25 +170,21 @@ def get_details(sid):
     return conn.cursor().execute("SELECT user_brief, system_persona, title FROM scenarios WHERE id=?", (sid,)).fetchone()
 
 # --- 4. SCENARIO MANAGEMENT ---
-
 if "custom_scenario" not in st.session_state:
     st.session_state.custom_scenario = None
 if "active_mode" not in st.session_state:
     st.session_state.active_mode = "Library"
 
 with st.sidebar:
-    # 🎨 BIG SIDEBAR TITLE (Using Custom CSS Class)
     st.markdown('<p class="sidebar-title">Procurement Simulator Pro</p>', unsafe_allow_html=True)
     
     if st.button("🚪 Log Out", use_container_width=True):
-        st.session_state.password_correct = False
+        st.session_state.license_valid = False
         st.rerun()
     st.markdown("---")
 
-    # TABS
     tab1, tab2 = st.tabs(["📚 Library", "✨ Create New"])
     
-    # TAB 1: LIBRARY
     with tab1:
         scenarios = get_scenarios()
         options = {f"{s[2]} | {s[1]} ({s[3]})": s[0] for s in scenarios}
@@ -188,13 +196,14 @@ with st.sidebar:
             st.session_state.messages = []
             st.rerun()
 
-    # TAB 2: CUSTOM
     with tab2:
         st.caption("Describe a real-life situation.")
         user_topic = st.text_area("Situation", placeholder="e.g. Negotiating a software renewal...")
         
         if st.button("✨ Generate & Load", type="primary", use_container_width=True):
-            if not user_topic:
+            if not client:
+                st.error("⚠️ AI Key Missing. Please check Render Settings.")
+            elif not user_topic:
                 st.warning("Describe a situation first.")
             else:
                 with st.spinner("Architecting Simulation..."):
@@ -222,7 +231,6 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # LOAD ACTIVE DATA
     active_brief = ""
     active_persona = ""
     active_title = ""
@@ -238,12 +246,10 @@ with st.sidebar:
         active_brief = data.get('user_brief', '')
         active_persona = data.get('system_persona', '')
 
-    # BRIEF
     st.markdown("### 📋 Executive Brief")
     with st.container(border=True):
         st.markdown(active_brief)
 
-    # TOOLS
     st.markdown("### 🛠️ Tools")
     if st.button("💡 AI Whisper", use_container_width=True):
         if not st.session_state.messages:
@@ -265,7 +271,6 @@ with st.sidebar:
 
 # --- 5. MAIN CHAT AREA ---
 
-# 🎨 SMALLER MAIN TITLE (Using Custom CSS Class)
 st.markdown(f'<p class="main-scenario-title">{active_title}</p>', unsafe_allow_html=True)
 st.caption(f"Mode: {st.session_state.active_mode} | Interactive Counterparty")
 
