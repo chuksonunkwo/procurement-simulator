@@ -15,31 +15,40 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CUSTOM CSS: Forces Sidebar Title to be HUGE and Main Title to be smaller
+# CUSTOM CSS: Refined for better alignment and visibility
 st.markdown("""
     <style>
-    /* 1. Make the Sidebar Title Huge */
+    /* 1. Sidebar Title - Adjusted size to prevent awkward wrapping */
     .sidebar-title {
-        font-size: 38px !important;
+        font-size: 32px !important; /* Reduced from 42px for better fit */
         font-weight: 800 !important;
         color: #2C3E50 !important;
         margin-bottom: 20px !important;
-        line-height: 1.1 !important;
+        line-height: 1.2 !important;
+        word-wrap: break-word !important;
     }
     
-    /* 2. Make the Main Scenario Title Smaller */
+    /* 2. Main Scenario Title - Added padding to ensure visibility */
     .main-scenario-title {
-        font-size: 26px !important;
-        font-weight: 600 !important;
-        color: #34495E !important;
+        font-size: 36px !important; /* Increased visibility */
+        font-weight: 700 !important;
+        color: #2C3E50 !important;
         border-bottom: 2px solid #eee;
-        padding-bottom: 10px;
+        padding-bottom: 15px;
+        margin-top: 20px !important; /* Pushes title down so it's not cut off */
     }
     
     /* General Cleanup */
-    .block-container { padding-top: 1rem; }
+    .block-container { 
+        padding-top: 3rem !important; /* Extra padding at top of page */
+    }
     .stChatInput { border-radius: 10px; }
     div[data-testid="stExpander"] { border: 1px solid #ddd; border-radius: 8px; }
+    
+    /* Fix for sidebar text alignment */
+    section[data-testid="stSidebar"] .block-container {
+        padding-top: 2rem;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -156,7 +165,7 @@ if "active_mode" not in st.session_state:
     st.session_state.active_mode = "Library"
 
 with st.sidebar:
-    # 🎨 BIG SIDEBAR TITLE (Using Custom CSS Class) - UPDATED TEXT
+    # 🎨 BIG SIDEBAR TITLE (Using Custom CSS Class)
     st.markdown('<p class="sidebar-title">Procurement Simulator Pro</p>', unsafe_allow_html=True)
     
     if st.button("🚪 Log Out", use_container_width=True):
