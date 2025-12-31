@@ -20,16 +20,16 @@ st.markdown("""
     <style>
     /* 1. Make the Sidebar Title Huge */
     .sidebar-title {
-        font-size: 42px !important;
+        font-size: 38px !important;
         font-weight: 800 !important;
         color: #2C3E50 !important;
         margin-bottom: 20px !important;
-        line-height: 1.2 !important;
+        line-height: 1.1 !important;
     }
     
     /* 2. Make the Main Scenario Title Smaller */
     .main-scenario-title {
-        font-size: 28px !important;
+        font-size: 26px !important;
         font-weight: 600 !important;
         color: #34495E !important;
         border-bottom: 2px solid #eee;
@@ -156,8 +156,8 @@ if "active_mode" not in st.session_state:
     st.session_state.active_mode = "Library"
 
 with st.sidebar:
-    # 🎨 BIG SIDEBAR TITLE (Using Custom CSS Class)
-    st.markdown('<p class="sidebar-title">Mission Control</p>', unsafe_allow_html=True)
+    # 🎨 BIG SIDEBAR TITLE (Using Custom CSS Class) - UPDATED TEXT
+    st.markdown('<p class="sidebar-title">Procurement Simulator Pro</p>', unsafe_allow_html=True)
     
     if st.button("🚪 Log Out", use_container_width=True):
         st.session_state.password_correct = False
