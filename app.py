@@ -15,13 +15,31 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# CUSTOM CSS: Forces Sidebar Title to be HUGE and Main Title to be smaller
 st.markdown("""
     <style>
-    .main .block-container { padding-top: 2rem; }
-    h1 { color: #0E1117; font-family: 'Helvetica Neue', sans-serif; font-weight: 700; }
+    /* 1. Make the Sidebar Title Huge */
+    .sidebar-title {
+        font-size: 42px !important;
+        font-weight: 800 !important;
+        color: #2C3E50 !important;
+        margin-bottom: 20px !important;
+        line-height: 1.2 !important;
+    }
+    
+    /* 2. Make the Main Scenario Title Smaller */
+    .main-scenario-title {
+        font-size: 28px !important;
+        font-weight: 600 !important;
+        color: #34495E !important;
+        border-bottom: 2px solid #eee;
+        padding-bottom: 10px;
+    }
+    
+    /* General Cleanup */
+    .block-container { padding-top: 1rem; }
     .stChatInput { border-radius: 10px; }
     div[data-testid="stExpander"] { border: 1px solid #ddd; border-radius: 8px; }
-    .custom-badge { background-color: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -35,10 +53,11 @@ def check_password():
     if st.session_state.password_correct:
         return True
 
+    # Professional Login Screen
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         st.markdown("## 🔒 Professional Login")
-        st.info("Enter your access code to initialize the simulation.")
+        st.info("Enter access code to initialize the simulation.")
         password = st.text_input("Access Code", type="password")
         if st.button("Authenticate", type="primary"):
             if password in VALID_PASSWORDS:
@@ -70,7 +89,7 @@ def get_client():
 client = get_client()
 
 # --- 3. DATABASE (Presets) ---
-DB_FILE = 'procurement_pro_v5.db'
+DB_FILE = 'procurement_pro_v6.db'
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -129,25 +148,26 @@ def get_details(sid):
     conn = sqlite3.connect(DB_FILE)
     return conn.cursor().execute("SELECT user_brief, system_persona, title FROM scenarios WHERE id=?", (sid,)).fetchone()
 
-# --- 4. SCENARIO MANAGEMENT (The New Logic) ---
+# --- 4. SCENARIO MANAGEMENT ---
 
-# Initialize Session State for Custom Scenarios
 if "custom_scenario" not in st.session_state:
     st.session_state.custom_scenario = None
 if "active_mode" not in st.session_state:
-    st.session_state.active_mode = "Library" # or "Custom"
+    st.session_state.active_mode = "Library"
 
 with st.sidebar:
-    st.markdown("## 🏢 Mission Control")
+    # 🎨 BIG SIDEBAR TITLE (Using Custom CSS Class)
+    st.markdown('<p class="sidebar-title">Mission Control</p>', unsafe_allow_html=True)
+    
     if st.button("🚪 Log Out", use_container_width=True):
         st.session_state.password_correct = False
         st.rerun()
     st.markdown("---")
 
-    # TABBED INTERFACE: Library vs Custom
+    # TABS
     tab1, tab2 = st.tabs(["📚 Library", "✨ Create New"])
     
-    # TAB 1: PRESET SCENARIOS
+    # TAB 1: LIBRARY
     with tab1:
         scenarios = get_scenarios()
         options = {f"{s[2]} | {s[1]} ({s[3]})": s[0] for s in scenarios}
@@ -156,30 +176,26 @@ with st.sidebar:
         if st.button("▶️ Load Library Scenario", type="primary", use_container_width=True):
             st.session_state.active_mode = "Library"
             st.session_state.current_selection_id = options[selected_label]
-            st.session_state.messages = [] # Reset chat
+            st.session_state.messages = []
             st.rerun()
 
-    # TAB 2: CUSTOM SCENARIO GENERATOR
+    # TAB 2: CUSTOM
     with tab2:
-        st.caption("Describe a real-life situation you want to practice.")
-        user_topic = st.text_area("Situation Description", placeholder="e.g. I need to negotiate a 20% salary raise with my boss who is very cost-conscious...")
+        st.caption("Describe a real-life situation.")
+        user_topic = st.text_area("Situation", placeholder="e.g. Negotiating a software renewal...")
         
         if st.button("✨ Generate & Load", type="primary", use_container_width=True):
             if not user_topic:
-                st.warning("Please describe a situation.")
+                st.warning("Describe a situation first.")
             else:
                 with st.spinner("Architecting Simulation..."):
                     try:
-                        # 1. GENERATE SCENARIO WITH AI
                         prompt = f"""
-                        You are a Negotiation Simulation Architect.
-                        User Situation: "{user_topic}"
-                        
-                        Create a structured simulation JSON with:
-                        1. 'title': Short professional title.
-                        2. 'user_brief': The user's Role, Situation, and precise Goals (Markdown format).
-                        3. 'system_persona': The Counterparty's Role, hidden motivations, and resistance points.
-                        
+                        Act as Negotiation Architect. User Situation: "{user_topic}"
+                        Create simulation JSON:
+                        1. 'title': Short title.
+                        2. 'user_brief': User's Role & Goal (Markdown).
+                        3. 'system_persona': Counterparty Role & Motivation.
                         Output JSON only.
                         """
                         response = client.models.generate_content(
@@ -188,36 +204,32 @@ with st.sidebar:
                             config=types.GenerateContentConfig(response_mime_type="application/json")
                         )
                         data = json.loads(response.text)
-                        
-                        # 2. SAVE TO SESSION
                         st.session_state.custom_scenario = data
                         st.session_state.active_mode = "Custom"
-                        st.session_state.messages = [] # Reset chat
+                        st.session_state.messages = []
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Generation Failed: {e}")
+                        st.error(f"Error: {e}")
 
     st.markdown("---")
     
-    # LOAD ACTIVE SCENARIO DATA
+    # LOAD ACTIVE DATA
     active_brief = ""
     active_persona = ""
     active_title = ""
 
     if st.session_state.active_mode == "Library":
-        # Default to first scenario if none selected yet
         if "current_selection_id" not in st.session_state:
             st.session_state.current_selection_id = list(options.values())[0]
-        
         active_brief, active_persona, active_title = get_details(st.session_state.current_selection_id)
         
     elif st.session_state.active_mode == "Custom" and st.session_state.custom_scenario:
         data = st.session_state.custom_scenario
         active_title = f"✨ {data.get('title', 'Custom Session')}"
-        active_brief = data.get('user_brief', 'No brief generated.')
-        active_persona = data.get('system_persona', 'Standard Counterparty')
+        active_brief = data.get('user_brief', '')
+        active_persona = data.get('system_persona', '')
 
-    # DISPLAY BRIEF
+    # BRIEF
     st.markdown("### 📋 Executive Brief")
     with st.container(border=True):
         st.markdown(active_brief)
@@ -232,7 +244,7 @@ with st.sidebar:
             try:
                 resp = client.models.generate_content(
                     model='gemini-2.0-flash', 
-                    contents=f"Context: {active_brief}\nTranscript: {transcript}\nTask: Give one tactical negotiation tip."
+                    contents=f"Context: {active_brief}\nTranscript: {transcript}\nTask: Give one tactical tip."
                 )
                 st.info(f"**Mentor:** {resp.text}")
             except:
@@ -242,10 +254,11 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# --- 5. MAIN CHAT INTERFACE ---
-st.title(active_title)
-st.caption("Interactive Negotiation Environment")
-st.divider()
+# --- 5. MAIN CHAT AREA ---
+
+# 🎨 SMALLER MAIN TITLE (Using Custom CSS Class)
+st.markdown(f'<p class="main-scenario-title">{active_title}</p>', unsafe_allow_html=True)
+st.caption(f"Mode: {st.session_state.active_mode} | Interactive Counterparty")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -264,11 +277,7 @@ if user_input := st.chat_input("Enter your commercial response..."):
     Simulation: {active_title}
     My Role (Secret): {active_persona}
     User Brief: {active_brief}
-    
-    Directives:
-    1. Stay in character as the counterparty.
-    2. Be concise (2-3 sentences max).
-    3. Push back on the user's demands based on my hidden motivation.
+    Directives: Act as tough counterparty. Concise. Negotiate hard.
     """
     
     gemini_history = []
@@ -309,9 +318,7 @@ with st.expander("📊 End Session & Generate Report", expanded=False):
                         contents=f"""
                         Context: {active_brief}
                         Transcript: {transcript}
-                        Task: Grade the user (0-100).
-                        Schema: {{total_score, commercial, strategy, feedback}}
-                        Output: JSON.
+                        Task: Grade user (0-100). Schema: {{total_score, commercial, strategy, feedback}} Output: JSON.
                         """,
                         config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Scorecard)
                     )
