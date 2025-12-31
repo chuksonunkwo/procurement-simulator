@@ -70,7 +70,7 @@ def get_client():
 client = get_client()
 
 # --- 3. DATABASE (Presets) ---
-DB_FILE = 'procurement_pro_v4.db'
+DB_FILE = 'procurement_pro_v5.db'
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
