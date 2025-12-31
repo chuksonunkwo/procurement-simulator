@@ -1,4 +1,3 @@
-%%writefile app.py
 import streamlit as st
 import sqlite3
 import time
@@ -10,8 +9,6 @@ from pydantic import BaseModel
 st.set_page_config(page_title="Procurement Pro", layout="wide", page_icon="💼")
 
 # 🔒 SECURITY: LOGIN SYSTEM
-# Define your access passwords here (You can change these anytime)
-# In a real SaaS, you'd use a database, but this works for Gumroad sales.
 VALID_PASSWORDS = ["negotiate2024", "procurement_master", "demo_user"]
 
 def check_password():
@@ -22,9 +19,8 @@ def check_password():
     if st.session_state.password_correct:
         return True
 
-    # Show Login Inputs
     st.markdown("## 🔒 Login Required")
-    st.markdown("Please enter the access code provided with your Gumroad purchase.")
+    st.markdown("Please enter the access code provided with your purchase.")
     
     password = st.text_input("Access Code", type="password")
     
@@ -33,26 +29,25 @@ def check_password():
             st.session_state.password_correct = True
             st.rerun()
         else:
-            st.error("❌ Invalid Code. Please purchase access on Gumroad.")
+            st.error("❌ Invalid Code.")
     return False
 
 if not check_password():
-    st.stop()  # Stop here if not logged in
+    st.stop()
 
 # --- 2. SECURE AI CONNECTION ---
-# Instead of hardcoding, we use st.secrets for security
-# If running locally, it looks for .streamlit/secrets.toml
-# If running on Streamlit Cloud, it uses the Dashboard Secrets.
 try:
-    PROJECT_ID = st.secrets["GOOGLE_PROJECT_ID"]
-    LOCATION = st.secrets["GOOGLE_LOCATION"]
+    # Render looks for Environment Variables
+    PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
+    LOCATION = os.environ.get("GOOGLE_LOCATION", "us-central1")
 except:
-    # Fallback for Colab testing (Manual Entry)
-    PROJECT_ID = "gen-lang-client-0365682686" 
+    PROJECT_ID = None
     LOCATION = "us-central1"
 
 @st.cache_resource
 def get_client():
+    if not PROJECT_ID:
+        return None
     try:
         return genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
     except Exception as e:
