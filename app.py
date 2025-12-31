@@ -16,9 +16,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ⬇️ SETTINGS ⬇️
-# Replace this with your Gumroad Link ID if you have it. 
-# Otherwise, the default allows testing.
+# ⬇️ FUTURE-PROOFING MODEL SELECTION ⬇️
+# Currently, "gemini-2.0-flash-exp" is the smartest/fastest available.
+# When 3.0 releases, just change this string to "gemini-3.0-pro"
+MODEL_NAME = "gemini-2.0-flash-exp" 
+
+# ⬇️ MONETIZATION SETTINGS ⬇️
 GUMROAD_PRODUCT_PERMALINK = "procurement-sim-pro" 
 
 # CSS STYLING
@@ -68,14 +71,20 @@ if not st.session_state.license_valid:
         st.info("Enter your License Key.")
         key_input = st.text_input("License Key", type="password")
         if st.button("Verify", type="primary"):
-            if key_input == "negotiate2024" or check_license(key_input):
+            # Backdoor for your testing
+            if key_input == "negotiate2024":
                 st.session_state.license_valid = True
+                st.rerun()
+            elif check_license(key_input):
+                st.session_state.license_valid = True
+                st.success("✅ License Verified!")
+                time.sleep(1)
                 st.rerun()
             else:
                 st.error("❌ Invalid Key")
     st.stop()
 
-# --- 2. AI CONNECTION (ROBUST) ---
+# --- 2. AI CONNECTION ---
 try:
     API_KEY = os.environ.get("GEMINI_API_KEY")
 except:
@@ -86,14 +95,15 @@ def get_client():
     if not API_KEY:
         return None
     try:
-        return genai.Client(api_key=API_KEY)
+        # Using the v1beta API to access the experimental 2.0 models
+        return genai.Client(api_key=API_KEY, http_options={'api_version': 'v1beta'})
     except:
         return None
 
 client = get_client()
 
 # --- 3. DATABASE ---
-DB_FILE = 'procurement_pro_v7.db'
+DB_FILE = 'procurement_pro_v9.db'
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -185,11 +195,11 @@ with st.sidebar:
             elif not user_topic:
                 st.warning("Please type a situation first.")
             else:
-                with st.spinner("Generating scenario..."):
+                with st.spinner("Architecting Simulation..."):
                     try:
-                        # Using 1.5-flash for maximum stability with API Keys
+                        # 🚀 USES THE MODEL_NAME VARIABLE
                         resp = client.models.generate_content(
-                            model='gemini-1.5-flash',
+                            model=MODEL_NAME,
                             contents=f"""
                             Role: Negotiation Architect.
                             Input: "{user_topic}"
@@ -206,7 +216,7 @@ with st.sidebar:
                         st.session_state.messages = []
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Generation Failed. Error details: {str(e)}")
+                        st.error(f"Generation Failed: {str(e)}")
 
     st.markdown("---")
     
@@ -233,10 +243,9 @@ with st.sidebar:
             st.warning("Chat first.")
         else:
             try:
-                # Using 1.5-flash
                 transcript = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
                 r = client.models.generate_content(
-                    model='gemini-1.5-flash', 
+                    model=MODEL_NAME, 
                     contents=f"Context: {brief}\nChat: {transcript}\nGive 1 short tip."
                 )
                 st.success(r.text)
@@ -262,13 +271,13 @@ if inp := st.chat_input("Type here..."):
     with st.chat_message("user", avatar="👤"):
         st.markdown(inp)
 
-    # Gemini 1.5 Flash for Chat
+    # 🚀 USES THE MODEL_NAME VARIABLE
     gemini_hist = [types.Content(role="user" if m["role"]=="user" else "model", parts=[types.Part(text=m["content"])]) for m in st.session_state.messages]
     
     with st.chat_message("assistant", avatar="👔"):
         try:
             r = client.models.generate_content(
-                model='gemini-1.5-flash',
+                model=MODEL_NAME,
                 contents=gemini_hist,
                 config=types.GenerateContentConfig(
                     system_instruction=f"Role: {persona}. Context: {brief}. Be tough. Concise.",
@@ -278,7 +287,7 @@ if inp := st.chat_input("Type here..."):
             st.markdown(r.text)
             st.session_state.messages.append({"role": "assistant", "content": r.text})
         except:
-            st.error("Connection Error")
+            st.error("Connection Error. Try resetting.")
 
 # --- 6. SCORE ---
 class Scorecard(BaseModel):
@@ -293,7 +302,7 @@ with st.expander("📊 Scorecard"):
         try:
             transcript = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
             r = client.models.generate_content(
-                model='gemini-1.5-flash',
+                model=MODEL_NAME,
                 contents=f"Context: {brief}\nChat: {transcript}\nGrade (0-100). JSON output.",
                 config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Scorecard)
             )
