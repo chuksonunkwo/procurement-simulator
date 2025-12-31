@@ -8,7 +8,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-# --- 1. CONFIGURATION & STYLING ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(
     page_title="Procurement Simulator Pro",
     layout="wide",
@@ -16,10 +16,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ⬇️ PASTE YOUR GUMROAD PERMALINK HERE ⬇️
-GUMROAD_PRODUCT_PERMALINK = "YOUR_PERMALINK_GOES_HERE" 
+# ⬇️ SETTINGS ⬇️
+# Replace this with your Gumroad Link ID if you have it. 
+# Otherwise, the default allows testing.
+GUMROAD_PRODUCT_PERMALINK = "procurement-sim-pro" 
 
-# CUSTOM CSS
+# CSS STYLING
 st.markdown("""
     <style>
     .sidebar-title {
@@ -45,55 +47,36 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🔒 SECURITY: GUMROAD LICENSE CHECK
+# 🔒 LICENSE CHECK
 def check_license(key):
     try:
         response = requests.post(
             "https://api.gumroad.com/v2/licenses/verify",
-            data={
-                "product_permalink": GUMROAD_PRODUCT_PERMALINK,
-                "license_key": key.strip()
-            }
+            data={"product_permalink": GUMROAD_PRODUCT_PERMALINK, "license_key": key.strip()}
         )
-        data = response.json()
-        return data.get("success", False)
+        return response.json().get("success", False)
     except:
         return False
 
-def login_screen():
-    if "license_valid" not in st.session_state:
-        st.session_state.license_valid = False
+if "license_valid" not in st.session_state:
+    st.session_state.license_valid = False
 
-    if st.session_state.license_valid:
-        return True
-
+if not st.session_state.license_valid:
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         st.markdown("## 🔒 Professional Login")
-        st.info("Enter the License Key sent to your email by Gumroad.")
-        
-        # Backdoor for testing (You can remove 'negotiate2024' later if you want strict security)
-        license_key = st.text_input("License Key", type="password")
-        
-        if st.button("Verify License", type="primary"):
-            if license_key == "negotiate2024": # Developer Backdoor
+        st.info("Enter your License Key.")
+        key_input = st.text_input("License Key", type="password")
+        if st.button("Verify", type="primary"):
+            if key_input == "negotiate2024" or check_license(key_input):
                 st.session_state.license_valid = True
-                st.rerun()
-            elif check_license(license_key):
-                st.session_state.license_valid = True
-                st.success("✅ License Verified!")
-                time.sleep(1)
                 st.rerun()
             else:
-                st.error("❌ Invalid License Key.")
-    return False
-
-if not login_screen():
+                st.error("❌ Invalid Key")
     st.stop()
 
-# --- 2. AI CONNECTION (FIXED FOR RENDER) ---
+# --- 2. AI CONNECTION (ROBUST) ---
 try:
-    # We now look for the API Key instead of Project ID
     API_KEY = os.environ.get("GEMINI_API_KEY")
 except:
     API_KEY = None
@@ -103,15 +86,14 @@ def get_client():
     if not API_KEY:
         return None
     try:
-        # Switch to API Key authentication which works on Render
         return genai.Client(api_key=API_KEY)
-    except Exception as e:
+    except:
         return None
 
 client = get_client()
 
-# --- 3. DATABASE (Presets) ---
-DB_FILE = 'procurement_pro_v6.db'
+# --- 3. DATABASE ---
+DB_FILE = 'procurement_pro_v7.db'
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -169,7 +151,7 @@ def get_details(sid):
     conn = sqlite3.connect(DB_FILE)
     return conn.cursor().execute("SELECT user_brief, system_persona, title FROM scenarios WHERE id=?", (sid,)).fetchone()
 
-# --- 4. SCENARIO MANAGEMENT ---
+# --- 4. UI ---
 if "custom_scenario" not in st.session_state:
     st.session_state.custom_scenario = None
 if "active_mode" not in st.session_state:
@@ -177,8 +159,7 @@ if "active_mode" not in st.session_state:
 
 with st.sidebar:
     st.markdown('<p class="sidebar-title">Procurement Simulator Pro</p>', unsafe_allow_html=True)
-    
-    if st.button("🚪 Log Out", use_container_width=True):
+    if st.button("🚪 Log Out"):
         st.session_state.license_valid = False
         st.rerun()
     st.markdown("---")
@@ -188,130 +169,118 @@ with st.sidebar:
     with tab1:
         scenarios = get_scenarios()
         options = {f"{s[2]} | {s[1]} ({s[3]})": s[0] for s in scenarios}
-        selected_label = st.selectbox("Select Scenario", list(options.keys()))
-        
-        if st.button("▶️ Load Library Scenario", type="primary", use_container_width=True):
+        selected = st.selectbox("Select Scenario", list(options.keys()))
+        if st.button("▶️ Load Library", type="primary"):
             st.session_state.active_mode = "Library"
-            st.session_state.current_selection_id = options[selected_label]
+            st.session_state.current_selection_id = options[selected]
             st.session_state.messages = []
             st.rerun()
 
     with tab2:
-        st.caption("Describe a real-life situation.")
-        user_topic = st.text_area("Situation", placeholder="e.g. Negotiating a software renewal...")
-        
-        if st.button("✨ Generate & Load", type="primary", use_container_width=True):
+        st.caption("Enter a custom situation:")
+        user_topic = st.text_area("Situation", height=100)
+        if st.button("✨ Generate", type="primary"):
             if not client:
-                st.error("⚠️ AI Key Missing. Please check Render Settings.")
+                st.error("❌ System Error: API Key not detected on Server.")
             elif not user_topic:
-                st.warning("Describe a situation first.")
+                st.warning("Please type a situation first.")
             else:
-                with st.spinner("Architecting Simulation..."):
+                with st.spinner("Generating scenario..."):
                     try:
-                        prompt = f"""
-                        Act as Negotiation Architect. User Situation: "{user_topic}"
-                        Create simulation JSON:
-                        1. 'title': Short title.
-                        2. 'user_brief': User's Role & Goal (Markdown).
-                        3. 'system_persona': Counterparty Role & Motivation.
-                        Output JSON only.
-                        """
-                        response = client.models.generate_content(
-                            model='gemini-2.0-flash',
-                            contents=prompt,
+                        # Using 1.5-flash for maximum stability with API Keys
+                        resp = client.models.generate_content(
+                            model='gemini-1.5-flash',
+                            contents=f"""
+                            Role: Negotiation Architect.
+                            Input: "{user_topic}"
+                            Output JSON: {{
+                                "title": "Short Title",
+                                "user_brief": "Role & Goal (Markdown)",
+                                "system_persona": "Counterparty Role & Hidden Motivation"
+                            }}
+                            """,
                             config=types.GenerateContentConfig(response_mime_type="application/json")
                         )
-                        data = json.loads(response.text)
-                        st.session_state.custom_scenario = data
+                        st.session_state.custom_scenario = json.loads(resp.text)
                         st.session_state.active_mode = "Custom"
                         st.session_state.messages = []
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(f"Generation Failed. Error details: {str(e)}")
 
     st.markdown("---")
     
-    active_brief = ""
-    active_persona = ""
-    active_title = ""
-
+    # LOAD DATA
     if st.session_state.active_mode == "Library":
         if "current_selection_id" not in st.session_state:
             st.session_state.current_selection_id = list(options.values())[0]
-        active_brief, active_persona, active_title = get_details(st.session_state.current_selection_id)
-        
-    elif st.session_state.active_mode == "Custom" and st.session_state.custom_scenario:
+        brief, persona, title = get_details(st.session_state.current_selection_id)
+    else:
         data = st.session_state.custom_scenario
-        active_title = f"✨ {data.get('title', 'Custom Session')}"
-        active_brief = data.get('user_brief', '')
-        active_persona = data.get('system_persona', '')
+        if data:
+            title = f"✨ {data.get('title')}"
+            brief = data.get('user_brief')
+            persona = data.get('system_persona')
+        else:
+            title, brief, persona = "No Scenario", "Please load a scenario.", ""
 
-    st.markdown("### 📋 Executive Brief")
-    with st.container(border=True):
-        st.markdown(active_brief)
+    st.markdown("### 📋 Brief")
+    st.info(brief)
 
     st.markdown("### 🛠️ Tools")
-    if st.button("💡 AI Whisper", use_container_width=True):
+    if st.button("💡 Whisper Hint"):
         if not st.session_state.messages:
-             st.warning("Start negotiating first.")
+            st.warning("Chat first.")
         else:
-            transcript = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
             try:
-                resp = client.models.generate_content(
-                    model='gemini-2.0-flash', 
-                    contents=f"Context: {active_brief}\nTranscript: {transcript}\nTask: Give one tactical tip."
+                # Using 1.5-flash
+                transcript = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+                r = client.models.generate_content(
+                    model='gemini-1.5-flash', 
+                    contents=f"Context: {brief}\nChat: {transcript}\nGive 1 short tip."
                 )
-                st.info(f"**Mentor:** {resp.text}")
+                st.success(r.text)
             except:
-                st.error("Offline.")
+                st.error("Advisor Offline")
 
-    if st.button("🔄 Reset Chat", use_container_width=True):
+    if st.button("🔄 Reset"):
         st.session_state.messages = []
         st.rerun()
 
-# --- 5. MAIN CHAT AREA ---
-
-st.markdown(f'<p class="main-scenario-title">{active_title}</p>', unsafe_allow_html=True)
-st.caption(f"Mode: {st.session_state.active_mode} | Interactive Counterparty")
+# --- 5. CHAT ---
+st.markdown(f'<p class="main-scenario-title">{title}</p>', unsafe_allow_html=True)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 for msg in st.session_state.messages:
-    avatar = "👤" if msg["role"] == "user" else "👔"
-    with st.chat_message(msg["role"], avatar=avatar):
+    with st.chat_message(msg["role"], avatar="👤" if msg["role"] == "user" else "👔"):
         st.markdown(msg["content"])
 
-if user_input := st.chat_input("Enter your commercial response..."):
-    st.session_state.messages.append({"role": "user", "content": user_input})
+if inp := st.chat_input("Type here..."):
+    st.session_state.messages.append({"role": "user", "content": inp})
     with st.chat_message("user", avatar="👤"):
-        st.markdown(user_input)
+        st.markdown(inp)
 
-    sys_prompt = f"""
-    Simulation: {active_title}
-    My Role (Secret): {active_persona}
-    User Brief: {active_brief}
-    Directives: Act as tough counterparty. Concise. Negotiate hard.
-    """
+    # Gemini 1.5 Flash for Chat
+    gemini_hist = [types.Content(role="user" if m["role"]=="user" else "model", parts=[types.Part(text=m["content"])]) for m in st.session_state.messages]
     
-    gemini_history = []
-    for m in st.session_state.messages:
-        role = "user" if m["role"] == "user" else "model"
-        gemini_history.append(types.Content(role=role, parts=[types.Part(text=m["content"])]))
-
     with st.chat_message("assistant", avatar="👔"):
         try:
-            response = client.models.generate_content(
-                model='gemini-2.0-flash',
-                contents=gemini_history,
-                config=types.GenerateContentConfig(system_instruction=sys_prompt, temperature=0.6)
+            r = client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=gemini_hist,
+                config=types.GenerateContentConfig(
+                    system_instruction=f"Role: {persona}. Context: {brief}. Be tough. Concise.",
+                    temperature=0.7
+                )
             )
-            st.markdown(response.text)
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
+            st.markdown(r.text)
+            st.session_state.messages.append({"role": "assistant", "content": r.text})
         except:
-            st.error("Connection Interrupted.")
+            st.error("Connection Error")
 
-# --- 6. SCORING ---
+# --- 6. SCORE ---
 class Scorecard(BaseModel):
     total_score: int
     commercial: int
@@ -319,36 +288,22 @@ class Scorecard(BaseModel):
     feedback: str
 
 st.markdown("---")
-with st.expander("📊 End Session & Generate Report", expanded=False):
-    if st.button("Analyze Performance"):
-        if len(st.session_state.messages) < 2:
-            st.warning("Insufficient data.")
-        else:
-            with st.spinner("Assessing..."):
-                transcript = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
-                try:
-                    resp = client.models.generate_content(
-                        model='gemini-2.0-flash',
-                        contents=f"""
-                        Context: {active_brief}
-                        Transcript: {transcript}
-                        Task: Grade user (0-100). Schema: {{total_score, commercial, strategy, feedback}} Output: JSON.
-                        """,
-                        config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Scorecard)
-                    )
-                    r = resp.parsed
-                    
-                    st.success(f"### Score: {min(r.total_score, 100)} / 100")
-                    st.progress(min(r.total_score, 100)/100)
-                    
-                    c1, c2, c3 = st.columns([1,1,2])
-                    with c1:
-                        st.metric("💰 Commercial", f"{min(r.commercial, 40)}/40")
-                        st.progress(min(r.commercial, 40)/40)
-                    with c2:
-                        st.metric("♟️ Strategy", f"{min(r.strategy, 40)}/40")
-                        st.progress(min(r.strategy, 40)/40)
-                    with c3:
-                        st.info(f"**Feedback:** {r.feedback}")
-                except:
-                    st.error("Analysis Error.")
+with st.expander("📊 Scorecard"):
+    if st.button("Calculate"):
+        try:
+            transcript = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+            r = client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=f"Context: {brief}\nChat: {transcript}\nGrade (0-100). JSON output.",
+                config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Scorecard)
+            )
+            d = r.parsed
+            st.balloons()
+            st.metric("Total Score", f"{d.total_score}/100")
+            st.progress(min(d.total_score, 100)/100)
+            c1, c2 = st.columns(2)
+            c1.metric("Commercial", d.commercial)
+            c2.metric("Strategy", d.strategy)
+            st.write(d.feedback)
+        except Exception as e:
+            st.error(f"Scoring failed: {e}")
