@@ -53,16 +53,16 @@ def check_license(key):
     # 1. Clean the key (remove accidental spaces)
     key = str(key).strip()
 
-    # 2. Your Gumroad Product Permalink (from your URL)
-    # Ensure this matches the text in your Gumroad product URL: gumroad.com/products/buoyxl/edit
-    PRODUCT_PERMALINK = "buoyxl" 
+    # 2. Your Gumroad Product Permalink
+    # Extracted from your URL: https://chukster06.gumroad.com/l/procurement-sim-pro
+    PRODUCT_PERMALINK = "procurement-sim-pro" 
 
     # 3. Ask Gumroad if the key is valid
     try:
         response = requests.post(
             "https://api.gumroad.com/v2/licenses/verify",
             data={
-                "product_permalink": PRODUCT_PERMALINK,  # CHANGED from product_id to product_permalink
+                "product_permalink": PRODUCT_PERMALINK,
                 "license_key": key
             }
         )
@@ -136,7 +136,7 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("**Procurement Simulator Pro**")
-    st.caption("v2.2 | IOC Edition")
+    st.caption("v2.3 | IOC Edition")
 
 # Title
 st.title("🤝 Procurement Negotiation Simulator Pro")
