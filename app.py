@@ -10,22 +10,38 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- API SETUP ---
-# Tries to get the key from Streamlit secrets (local) or Environment Variables (Render)
+# --- API SETUP (FIXED) ---
+# This block prioritizes Render Environment Variables to prevent "No secrets found" errors.
+
+api_key = None
+
+# 1. Try getting key from Render Environment (Server)
 try:
-    if "GEMINI_API_KEY" in st.secrets:
-        api_key = st.secrets["GEMINI_API_KEY"]
-    else:
-        api_key = os.environ.get("GEMINI_API_KEY")
-    
-    if not api_key:
-        st.error("⚠️ API Key missing. Please add GEMINI_API_KEY to Render Environment Variables.")
-        st.stop()
-        
+    api_key = os.environ.get("GEMINI_API_KEY")
+except Exception:
+    pass
+
+# 2. If not found in Environment, try Streamlit Secrets (Local Testing only)
+if not api_key:
+    try:
+        # We wrap this in a try-block because accessing st.secrets throws an error if the file doesn't exist
+        if "GEMINI_API_KEY" in st.secrets:
+            api_key = st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        pass
+
+# 3. Final Check: If we still don't have a key, stop the app.
+if not api_key:
+    st.error("⚠️ API Key missing. Please add GEMINI_API_KEY to Render Environment Variables.")
+    st.stop()
+
+# 4. Configure Google AI
+try:
     genai.configure(api_key=api_key)
 except Exception as e:
     st.error(f"Configuration Error: {e}")
     st.stop()
+
 
 # --- LICENSE VERIFICATION (GUMROAD) ---
 def check_license(key):
@@ -117,7 +133,7 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("**Procurement Simulator Pro**")
-    st.caption("v2.0 | IOC Edition")
+    st.caption("v2.1 | IOC Edition")
 
 # Title
 st.title("🤝 Procurement Negotiation Simulator Pro")
