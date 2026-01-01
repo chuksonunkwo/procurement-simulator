@@ -10,8 +10,8 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- API SETUP (FIXED) ---
-# This block prioritizes Render Environment Variables to prevent "No secrets found" errors.
+# --- API SETUP (ROBUST FIX) ---
+# This block prioritizes Render Environment Variables and ignores missing local secrets files.
 
 api_key = None
 
@@ -24,15 +24,17 @@ except Exception:
 # 2. If not found in Environment, try Streamlit Secrets (Local Testing only)
 if not api_key:
     try:
-        # We wrap this in a try-block because accessing st.secrets throws an error if the file doesn't exist
-        if "GEMINI_API_KEY" in st.secrets:
+        # Only check secrets if the previous check failed
+        if hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
             api_key = st.secrets["GEMINI_API_KEY"]
     except Exception:
+        # If secrets file is missing (which is normal on Render), just ignore it
         pass
 
 # 3. Final Check: If we still don't have a key, stop the app.
 if not api_key:
     st.error("⚠️ API Key missing. Please add GEMINI_API_KEY to Render Environment Variables.")
+    st.info("In Render Dashboard: Go to Environment -> Add Environment Variable -> Key: GEMINI_API_KEY")
     st.stop()
 
 # 4. Configure Google AI
@@ -51,15 +53,16 @@ def check_license(key):
     # 1. Clean the key (remove accidental spaces)
     key = str(key).strip()
 
-    # 2. Your Gumroad Product ID
-    PRODUCT_ID = "buoyxl" 
+    # 2. Your Gumroad Product Permalink (from your URL)
+    # Ensure this matches the text in your Gumroad product URL: gumroad.com/products/buoyxl/edit
+    PRODUCT_PERMALINK = "buoyxl" 
 
     # 3. Ask Gumroad if the key is valid
     try:
         response = requests.post(
             "https://api.gumroad.com/v2/licenses/verify",
             data={
-                "product_id": PRODUCT_ID,
+                "product_permalink": PRODUCT_PERMALINK,  # CHANGED from product_id to product_permalink
                 "license_key": key
             }
         )
@@ -69,7 +72,7 @@ def check_license(key):
         
         # If verify fails, print to server logs for debugging
         if not data.get("success"):
-            print(f"License check failed for key ending in ...{key[-4:]}: {data}")
+            print(f"License check failed for key ...{key[-4:]}: {data}")
             
         return data.get("success", False)
 
@@ -133,7 +136,7 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("**Procurement Simulator Pro**")
-    st.caption("v2.1 | IOC Edition")
+    st.caption("v2.2 | IOC Edition")
 
 # Title
 st.title("🤝 Procurement Negotiation Simulator Pro")
