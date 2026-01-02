@@ -1,240 +1,236 @@
 import streamlit as st
-import google.generativeai as genai
-import requests
-import os
+import sqlite3
+from google import genai
+from google.genai import types
+from pydantic import BaseModel
+import time
+from fpdf import FPDF
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="Procurement Negotiation Simulator Pro", page_icon="🤝", layout="wide")
+# --- 1. APP CONFIGURATION ---
+st.set_page_config(
+    page_title="Procurement Pro",
+    layout="wide",
+    page_icon="💼",
+    initial_sidebar_state="expanded"
+)
 
-# --- PROFESSIONAL STYLING & UI FIXES ---
-st.markdown("""
-<style>
-    .stApp { background-color: #ffffff; }
-    
-    /* EXPANDED SIDEBAR WIDTH FOR BETTER TEXT SPACE */
-    section[data-testid="stSidebar"] {
-        width: 400px !important;
-    }
-    
-    /* Sidebar Background */
-    [data-testid="stSidebar"] { 
-        background-color: #f0f2f6; 
-        border-right: 1px solid #e0e0e0; 
-    }
-    
-    /* Mission Brief Box */
-    .brief-box { 
-        background-color: #e8f4f8; 
-        padding: 20px; 
-        border-radius: 10px; 
-        border-left: 5px solid #007bff; 
-        margin-bottom: 20px; 
-    }
-    
-    /* High-Visibility Red End Button */
-    .stButton button[kind="primary"] { 
-        background-color: #ff4b4b; 
-        border-color: #ff4b4b; 
-        color: white; 
-        font-weight: bold;
-    }
-    .stButton button[kind="primary"]:hover { 
-        background-color: #ff3333; 
-        border-color: #ff3333; 
-    }
+# --- 2. GLOBAL STATE ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(time.time())
 
-    /* Chat Input Floating Bar Visibility */
-    [data-testid="stBottom"] {
-        background-color: #ffffff;
-        border-top: 2px solid #e0e0e0;
-        padding-top: 15px;
-        padding-bottom: 15px;
-        box-shadow: 0px -4px 15px rgba(0,0,0,0.08);
-    }
-    
-    .stChatInputContainer textarea {
-        background-color: #f8f9fa;
-        border: 1px solid #ced4da;
-        border-radius: 8px;
-    }
-</style>
-""", unsafe_allow_html=True)
+# --- 3. AI CONNECTION ---
+PROJECT_ID = "gen-lang-client-0365682686"
+LOCATION = "us-central1"
 
-# --- API SETUP ---
-api_key = os.environ.get("GEMINI_API_KEY")
-if not api_key:
+@st.cache_resource
+def get_client():
     try:
-        if hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
-            api_key = st.secrets["GEMINI_API_KEY"]
-    except: pass
+        return genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
+    except Exception as e:
+        return None
 
-if not api_key:
-    st.error("⚠️ API Key missing. Add GEMINI_API_KEY to Render Environment Variables.")
-    st.stop()
+client = get_client()
 
-try:
-    genai.configure(api_key=api_key)
-except Exception as e:
-    st.error(f"Config Error: {e}")
-    st.stop()
+# --- 4. DATA LAYER (20 SCENARIOS) ---
+DB_FILE = 'procurement_ultimate.db'
 
-# --- AUTHENTICATION ---
-def check_license(key):
-    try:
-        response = requests.post("https://api.gumroad.com/v2/licenses/verify", 
-                               data={"product_id": "MFZpNGyCplKf9iTHq2f2xg==", "license_key": str(key).strip()})
-        return response.json().get("success", False)
-    except: return False
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("DROP TABLE IF EXISTS scenarios")
+    c.execute('''CREATE TABLE scenarios (
+        id INTEGER PRIMARY KEY, 
+        title TEXT, 
+        category TEXT, 
+        difficulty TEXT, 
+        user_brief TEXT, 
+        system_persona TEXT
+    )''')
+    
+    # THE MASTER LIST OF 20 SCENARIOS
+    data = [
+        # --- CONSTRUCTION & CAPEX ---
+        ("EPC Steel Variation Claim", "Construction", "Hard", "**Role:** Project Director.\n**Situation:** Contractor claims $5M for steel price hikes on LSTK contract.\n**Goal:** Reject price increase. Protect schedule.", "**Role:** Contractor PM.\n**Motivation:** Facing liquidity issues. Need cash or will slow down."),
+        ("Deepwater Rig Rate", "Drilling", "Medium", "**Role:** Wells Lead.\n**Situation:** Oil price drop. Rig rates down 30%.\n**Goal:** Renegotiate rate down 20%. Offer 1-yr extension.", "**Role:** Rig Contractor.\n**Motivation:** Terrified of stacking the rig. Act tough but need the deal."),
+        ("FPSO Termination Threat", "Production", "Expert", "**Role:** Asset Mgr.\n**Situation:** FPSO uptime 85% (Target 95%).\n**Goal:** Get remedial plan or threaten Default Notice.", "**Role:** FPSO Operator.\n**Motivation:** Parts stuck in customs. Terrified of losing contract."),
+        ("Camp Construction Delay", "Construction", "Medium", "**Role:** Site Mgr.\n**Situation:** Camp delivery delayed 2 months.\n**Goal:** Demand acceleration at contractor cost.", "**Role:** Construction Lead.\n**Motivation:** Weather caused delays (Force Majeure?). You won't pay for acceleration."),
+        
+        # --- IT & SOFTWARE ---
+        ("SaaS Renewal Hike", "IT", "Medium", "**Role:** IT Buyer.\n**Situation:** Vendor demands 15% hike.\n**Goal:** Cap at 3% (CPI). Remove auto-renewal.", "**Role:** Sales VP.\n**Motivation:** Need to hit quarterly target. Can trade price for 3-year term."),
+        ("Software License Audit", "IT", "Hard", "**Role:** CIO.\n**Situation:** Vendor claims $2M in unlicensed usage.\n**Goal:** Settle for <$200k. Prove usage data is wrong.", "**Role:** Compliance Auditor.\n**Motivation:** Your bonus depends on the penalty size. You have 'proof'."),
+        ("Data Breach Compensation", "IT/Legal", "Expert", "**Role:** Legal Counsel.\n**Situation:** Cloud provider leaked employee data.\n**Goal:** Secure 1-year free service + Credit Monitoring.", "**Role:** Cloud Provider.\n**Motivation:** Deny negligence. Limit liability to 1 month fees (standard clause)."),
+        
+        # --- LOGISTICS & OPERATIONS ---
+        ("Logistics Demurrage", "Logistics", "Easy", "**Role:** Logistics Supt.\n**Situation:** Vessel delayed 3 days. Owner claims $50k.\n**Goal:** Pay $0. Delay was crane breakdown.", "**Role:** Shipowner.\n**Motivation:** Blame 'Port Congestion'. Need cash for fuel."),
+        ("Helicopter Fuel Surcharge", "Logistics", "Medium", "**Role:** Category Lead.\n**Situation:** Provider wants 10% fuel surcharge.\n**Goal:** Agree to floating mechanism, not fixed hike.", "**Role:** Heli Operator.\n**Motivation:** Fuel prices spiked. Margins are zero without this."),
+        ("Warehousing Exclusivity", "Logistics", "Easy", "**Role:** Supply Base Mgr.\n**Situation:** Warehouse owner wants 5-year exclusive deal.\n**Goal:** Agree to 2 years, no exclusivity.", "**Role:** Warehouse Owner.\n**Motivation:** Need long lease to secure bank loan."),
+        
+        # --- CORPORATE & STRATEGY ---
+        ("Consultancy Rate Hike", "Corporate", "Medium", "**Role:** HR Director.\n**Situation:** Strategy firm wants +10% rate increase.\n**Goal:** Hold rates flat. Offer more volume/projects.", "**Role:** Partner.\n**Motivation:** Salary inflation is high. Cannot keep staff without rate hike."),
+        ("Office Lease Renewal", "Real Estate", "Hard", "**Role:** Facilities Mgr.\n**Situation:** Landlord wants 20% rent hike.\n**Goal:** Flat renewal or we move to suburbs.", "**Role:** Landlord.\n**Motivation:** Market is hot. Have another tenant lined up (bluff?)."),
+        ("Travel Agency Rebate", "Corporate", "Easy", "**Role:** Procurement Lead.\n**Situation:** selecting new Travel Agency.\n**Goal:** Secure 3% rebate on all volume.", "**Role:** Agency Rep.\n**Motivation:** Margins are thin. Can offer 1% max."),
+        
+        # --- LEGAL & GOVERNANCE ---
+        ("Pollution Liability Cap", "Legal", "Hard", "**Role:** Legal Counsel.\n**Situation:** Vessel owner wants $5M liability cap.\n**Goal:** Unlimited Liability or $50M min.", "**Role:** Owner.\n**Motivation:** Insurance only covers $10M. Cannot sign for more."),
+        ("JV Partner Approval", "Governance", "Hard", "**Role:** Asset Mgr (Operator).\n**Situation:** Sole-source $2M repair.\n**Goal:** Get Partner approval. Skip tender.", "**Role:** Partner (NOP).\n**Motivation:** Suspect gold-plating. Demand full tender."),
+        ("Force Majeure Claim", "Legal", "Expert", "**Role:** Contract Mgr.\n**Situation:** Supplier declares FM due to 'Storm'.\n**Goal:** Reject FM. Storm was predictable.", "**Role:** Supplier.\n**Motivation:** Factory damaged. Cannot deliver. Need relief."),
+        ("IP Ownership Dispute", "R&D", "Hard", "**Role:** R&D Lead.\n**Situation:** Joint development with startup.\n**Goal:** We own the IP. They get license.", "**Role:** Startup CEO.\n**Motivation:** IP is our only asset. We must own it."),
+        
+        # --- ESG & HSE ---
+        ("Local Content Quota", "ESG", "Medium", "**Role:** Local Content Mgr.\n**Situation:** Govt mandates 40% local spend.\n**Goal:** Enforce target without delay.", "**Role:** Tier 1 Supplier.\n**Motivation:** Locals are untrained. Will cause 6-month delay."),
+        ("HSE Incident Reporting", "HSE", "Medium", "**Role:** HSE Mgr.\n**Situation:** Contractor hid Near Miss.\n**Goal:** Reset safety bonus to 0%.", "**Role:** Site Supervisor.\n**Motivation:** Crew loses bonus. Tried to protect them."),
+        ("Green Energy Premium", "ESG", "Medium", "**Role:** Power Buyer.\n**Situation:** Buying renewable power.\n**Goal:** Pay <5% premium over grid price.", "**Role:** Solar Generator.\n**Motivation:** Demand is high. Can sell to others for +10%.")
+    ]
+    
+    c.executemany('INSERT INTO scenarios (title, category, difficulty, user_brief, system_persona) VALUES (?,?,?,?,?)', data)
+    conn.commit()
 
-# Initialize Session States
-if "authenticated" not in st.session_state: st.session_state.authenticated = False
-if "messages" not in st.session_state: st.session_state.messages = []
-if "scenario_active" not in st.session_state: st.session_state.scenario_active = False
-if "current_brief" not in st.session_state: st.session_state.current_brief = ""
-if "current_title" not in st.session_state: st.session_state.current_title = "Welcome"
-if "mentor_tip" not in st.session_state: st.session_state.mentor_tip = None
+if 'db_initialized' not in st.session_state:
+    init_db()
+    st.session_state['db_initialized'] = True
 
-# --- LOGIN SCREEN ---
-if not st.session_state.authenticated:
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        st.markdown("<div style='text-align: center; margin-top: 50px;'><h1>🔒 Enterprise Login</h1></div>", unsafe_allow_html=True)
-        key = st.text_input("License Key", type="password")
-        if st.button("Verify Access", use_container_width=True):
-            if check_license(key):
-                st.session_state.authenticated = True
-                st.rerun()
-            else: st.error("❌ Invalid Key")
-    st.stop()
+def get_scenarios():
+    conn = sqlite3.connect(DB_FILE)
+    return conn.cursor().execute("SELECT id, title, category, difficulty FROM scenarios").fetchall()
 
-# --- SCENARIO DATA (20 CORE CASES) ---
-SCENARIOS = {
-    "01. Deepwater Rig Rate Review": {"context": "IOC Upstream", "brief": "Category Manager for major IOC. Contractor 'TransOceanic' wants +15% rates mid-contract. Target: <5% or performance KPIs."},
-    "02. Marine Logistics Fuel Surcharge": {"context": "Logistics", "brief": "OSV provider demands retroactive fuel surcharge not in contract. Objective: Reject retroactive, negotiate fair forward formula."},
-    "03. EPC Variation Claim": {"context": "Infrastructure", "brief": "Sub-contractor claims $2M for 'unforeseen ground conditions'. Objective: Settle <$500k or reject via Clause 14.2."},
-    "04. SaaS Renewal Dispute": {"context": "IT", "brief": "CRM renewal. Vendor added 12% inflation despite outages. Objective: 0% hike + service credits."},
-    "05. Chemical Force Majeure": {"context": "Chemicals", "brief": "Sole supplier declared FM. Offers 50% volume at +40% price. Objective: Secure 80% volume at max +15% price."},
-    "06. Professional Services Rate Card": {"context": "HR", "brief": "Big 4 wants 10% hike. Objective: <3% for Seniors only, freeze Juniors."},
-    "07. Maintenance (MRO) Bulk Deal": {"context": "Operations", "brief": "Consolidating 5 workshops. Objective: 15% volume discount rebate structure in exchange for exclusivity."},
-    "08. Liability Cap Negotiation": {"context": "Legal", "brief": "Start-up wants $1M cap. Objective: Unlimited for IP/Data, $5M general cap."},
-    "09. Subsea Umbilicals Delay": {"context": "Supply Chain", "brief": "4 weeks late. Objective: Enforce LDs or trade for free site engineering."},
-    "10. Termination for Convenience": {"context": "Projects", "brief": "Cancelled project. Builder claims Lost Profit. Objective: Pay work done only."},
-    "11. Wind Turbine Warranty": {"context": "Renewables", "brief": "Buying 50 turbines. Need 5yr warranty, vendor offers 2yr. Objective: Secure 5yr availability guarantee."},
-    "12. Green H2 Tech Risk": {"context": "R&D", "brief": "Pilot plant. Vendor wants Cost Plus. Objective: Target Cost with Cap."},
-    "13. Child Labor Allegation": {"context": "ESG", "brief": "NGO report on supply chain. Objective: Immediate audit & zero-tolerance clause."},
-    "14. Carbon Footprint": {"context": "Sustainability", "brief": "Logistics provider refuses EV trucks. Objective: Phased transition, pay premium only for green miles."},
-    "15. Red Sea Blockade": {"context": "Logistics", "brief": "Route blocked. Forwarder wants $500k surcharge. Objective: Split 50/50."},
-    "16. Supplier Insolvency": {"context": "Risk", "brief": "Supplier bankrupt. Receiver demands cash. Objective: Pay for raw materials only."},
-    "17. The 'Rogue' Stakeholder": {"context": "Internal", "brief": "VP promised job to expensive vendor. Objective: Walk back promise, force competition."},
-    "18. Budget Cut Survival": {"context": "Strategy", "brief": "Budget cut 20%. Objective: Secure 10% discount from top 3 providers."},
-    "19. AI IP Ownership": {"context": "IT/AI", "brief": "Dev shop wants code IP. Objective: Work Made for Hire (you own it)."},
-    "20. Cloud Overspend": {"context": "IT", "brief": "AWS budget blown by $200k. Objective: Forgiveness credit for 3yr commitment."}
-}
+def get_details(sid):
+    conn = sqlite3.connect(DB_FILE)
+    return conn.cursor().execute("SELECT user_brief, system_persona FROM scenarios WHERE id=?", (sid,)).fetchone()
 
-# --- SIDEBAR CONTROL PANEL ---
+# --- 5. PDF ENGINE ---
+def create_pdf(title, brief, score_data, feedback, transcript):
+    class PDF(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 15)
+            self.cell(0, 10, 'Negotiation Performance Report', 0, 1, 'C')
+            self.set_font('Arial', 'I', 10)
+            self.cell(0, 10, f'Scenario: {title}', 0, 1, 'C')
+            self.ln(5)
+        def footer(self):
+            self.set_y(-15); self.set_font('Arial', 'I', 8)
+            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+    
+    def clean(t): return t.encode('latin-1', 'ignore').decode('latin-1')
+    
+    pdf = PDF(); pdf.add_page(); pdf.set_auto_page_break(auto=True, margin=15)
+    
+    # Dashboard
+    pdf.set_font('Arial', 'B', 12); pdf.cell(0, 10, '1. Executive Scorecard', 0, 1)
+    pdf.set_font('Arial', '', 11)
+    pdf.cell(60, 10, f"Total Rating: {score_data['total']}/100", 1)
+    pdf.cell(60, 10, f"Commercial: {score_data['comm']}/40", 1)
+    pdf.cell(60, 10, f"Strategic: {score_data['strat']}/40", 1, 1)
+    pdf.ln(5)
+    
+    # Feedback
+    pdf.set_font('Arial', 'B', 12); pdf.cell(0, 10, '2. AI Coach Assessment', 0, 1)
+    pdf.set_font('Arial', '', 10); pdf.multi_cell(0, 6, clean(feedback)); pdf.ln(5)
+    
+    # Transcript
+    pdf.set_font('Arial', 'B', 12); pdf.cell(0, 10, '3. Official Transcript', 0, 1)
+    pdf.set_font('Courier', '', 9)
+    for m in transcript:
+        pdf.multi_cell(0, 5, f"{m['role'].upper()}: {clean(m['content'])}"); pdf.ln(1)
+        
+    return pdf.output(dest='S').encode('latin-1')
+
+# --- 6. PROFESSIONAL UI ---
 with st.sidebar:
-    st.header("🎛️ Control Panel")
-    mode = st.radio("Mode:", ["📚 Scenarios", "✨ AI Architect (Custom)"])
+    # 🎨 CUSTOM BRANDING
+    st.markdown("""
+        <style>
+        .big-font { font-size: 26px !important; font-weight: 800; color: #154360; margin-bottom: 10px; }
+        .stButton button { width: 100%; border-radius: 5px; }
+        </style>
+        <div class="big-font">Procurement Pro</div>
+        """, unsafe_allow_html=True)
+    
+    st.caption("Advanced Negotiation Simulator v2.0")
     st.markdown("---")
     
-    if mode == "📚 Scenarios":
-        sel = st.selectbox("Select Scenario:", list(SCENARIOS.keys()))
-        if st.button("▶️ Start Simulation", use_container_width=True):
-            st.session_state.current_title = sel
-            st.session_state.current_brief = SCENARIOS[sel]['brief']
-            st.session_state.messages = []
-            st.session_state.scenario_active = True
-            st.session_state.mentor_tip = None
-            st.rerun()
-    else:
-        ctx = st.text_input("Industry Context", placeholder="e.g. Mining, Oil and Gas")
-        obj = st.text_area("Objective", placeholder="Describe your situation...")
-        if st.button("✨ Generate & Start", use_container_width=True):
-            if obj:
-                st.session_state.current_title = f"Custom: {ctx}"
-                st.session_state.current_brief = obj
-                st.session_state.messages = []
-                st.session_state.scenario_active = True
-                st.session_state.mentor_tip = None
-                st.rerun()
-
-    if st.session_state.scenario_active:
-        st.markdown("---")
-        st.markdown("### 💡 AI Mentor")
-        # REDUCED VERBOSITY IN MENTOR PROMPT
-        if st.button("Get a Tactical Hint"):
-            with st.spinner("Analyzing strategy..."):
-                try:
-                    tip_prompt = f"Negotiation context: {st.session_state.current_brief}. Current history: {st.session_state.messages}. Provide ONE short, sharp tactical tip for the user. BE CONCISE. Max 2 sentences."
-                    mentor_resp = genai.GenerativeModel("gemini-2.0-flash-exp").generate_content(tip_prompt)
-                    st.session_state.mentor_tip = mentor_resp.text
-                except: st.session_state.mentor_tip = "Strategy: Test their claim by asking for specific supporting data."
-        if st.session_state.mentor_tip:
-            st.info(st.session_state.mentor_tip)
-
-        st.markdown("---")
-        if st.button("🛑 End Negotiation", type="primary", use_container_width=True): 
-            st.session_state.show_score = True
-            
-        if st.button("🔄 Reset / New Session", use_container_width=True):
-            st.session_state.scenario_active = False
-            st.session_state.messages = []
-            st.session_state.show_score = False
-            st.session_state.mentor_tip = None
-            st.rerun()
-
-    st.markdown("---")
-    with st.expander("⚖️ Disclaimer & Privacy"):
-        st.caption("**Fictitious Entities:** All company names (e.g. 'TransOceanic') are fictitious for training purposes. No real association is intended.")
-        st.caption("**Privacy:** Zero-retention architecture. No chat logs or scenarios are stored permanently.")
-        st.caption("**Not Legal Advice:** Simulation results are educational and should not be relied upon for live contracts.")
+    # SCENARIO SELECTOR
+    scenarios = get_scenarios()
+    # Format: "Category | Title (Diff)"
+    options = {f"{s[2]} | {s[1]} ({s[3]})": s[0] for s in scenarios}
+    selected_label = st.selectbox("Select Mission", list(options.keys()))
+    selected_id = options[selected_label]
+    brief, persona = get_details(selected_id)
     
-    st.caption("Procurement Simulator Pro\nv2.0 | Enterprise | Gemini 2.0")
-
-# --- MAIN INTERFACE ---
-st.title("🤝 Procurement Negotiation Simulator")
-
-if not st.session_state.scenario_active:
-    st.markdown("### Welcome, Professional.\nSelect a mission from the **Control Panel** to enter the arena.")
-
-else:
-    # Mission Brief Display
-    st.markdown(f"<div class='brief-box'><h4>📄 {st.session_state.current_title}</h4><p>{st.session_state.current_brief}</p></div>", unsafe_allow_html=True)
-
-    # Chat History
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"], avatar="👤" if m["role"]=="user" else "🤖"): 
-            st.write(m["content"])
-
-    # Input Area
-    if user_in := st.chat_input("Type your proposal..."):
-        st.session_state.messages.append({"role": "user", "content": user_in})
-        with st.chat_message("user", avatar="👤"): st.write(user_in)
-
-        with st.chat_message("assistant", avatar="🤖"):
-            with st.spinner("Counterparty is thinking..."):
+    with st.expander("📋 Mission Briefing", expanded=True):
+        st.markdown(brief)
+    
+    st.markdown("---")
+    st.subheader("🛠️ Tactical Support")
+    
+    # AI WHISPER BUTTON
+    if st.button("💡 Strategic Whisper"):
+        if not st.session_state.messages:
+            st.warning("Initiate negotiation first.")
+        elif not client:
+            st.error("AI Offline.")
+        else:
+            with st.spinner("Analyzing leverage points..."):
+                t = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+                p = f"Context: {brief}\nTranscript: {t}\nTask: Give ONE short, high-leverage tactical move."
                 try:
-                    hist = [{"role": "user", "parts": f"You are a tough, realistic commercial counterparty. Scenario: {st.session_state.current_brief}. Be concise and push back on terms."}]
-                    for m in st.session_state.messages: 
-                        hist.append({"role": "user" if m["role"]=="user" else "model", "parts": m["content"]})
-                    
-                    model = genai.GenerativeModel("gemini-2.0-flash-exp")
-                    resp = model.generate_content(hist)
-                    st.write(resp.text)
-                    st.session_state.messages.append({"role": "assistant", "content": resp.text})
-                except Exception as e: st.error(f"AI Error: {e}")
+                    r = client.models.generate_content(model='gemini-2.0-flash', contents=p)
+                    st.info(f"**Coach:** {r.text}")
+                except: st.error("Coach unavailable.")
+    
+    if st.button("🔄 Reset Session", type="primary"):
+        st.session_state.messages = []
+        st.rerun()
 
-    # Scorecard Logic
-    if st.session_state.get("show_score", False):
-        st.markdown("---")
-        with st.spinner("Compiling Chief Procurement Officer Scorecard..."):
+# MAIN AREA
+st.markdown(f"### {selected_label.split('|')[1].strip()}") 
+
+# CHAT INTERFACE
+if not client: st.error("⚠️ Enterprise AI Offline."); st.stop()
+
+for msg in st.session_state.messages:
+    avatar = "👤" if msg["role"] == "user" else "👔"
+    with st.chat_message(msg["role"], avatar=avatar):
+        st.markdown(msg["content"])
+
+# LOGIC ENGINE
+if user_input := st.chat_input("Enter your position..."):
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    with st.chat_message("user", avatar="👤"): st.markdown(user_input)
+
+    sys_prompt = f"Sim: {selected_label}\nRole: {persona}\nAct as professional counterparty. Concise. Tough."
+    gemini_hist = [types.Content(role="user" if m["role"]=="user" else "model", parts=[types.Part(text=m["content"])]) for m in st.session_state.messages]
+    
+    with st.chat_message("assistant", avatar="👔"):
+        with st.spinner("Counterparty responding..."):
             try:
-                score_prompt = f"Analyze negotiation: {st.session_state.current_brief}. History: {st.session_state.messages}. Provide: Score (0-100), Exec Summary, 3 Strengths, 3 Weaknesses, and Coaching Tip."
-                analysis = genai.GenerativeModel("gemini-2.0-flash-exp").generate_content(score_prompt)
-                
-                st.balloons()
-                with st.expander("📈 Negotiation Scorecard", expanded=True):
-                    st.markdown(analysis.text)
-                    st.download_button("📥 Download After-Action Review", analysis.text, "report.txt")
-                st.session_state.show_score = False
-            except Exception as e: st.error(f"Scoring Error: {e}")
+                resp = client.models.generate_content(model='gemini-2.0-flash', contents=gemini_hist, config=types.GenerateContentConfig(system_instruction=sys_prompt, temperature=0.6))
+                st.markdown(resp.text)
+                st.session_state.messages.append({"role": "assistant", "content": resp.text})
+            except: st.error("Connection Error.")
+
+# ANALYTICS & PDF
+class Scorecard(BaseModel):
+    total_score: int; commercial: int; strategy: int; feedback: str
+
+st.markdown("---")
+with st.expander("📊 End Session & Generate Report", expanded=False):
+    if st.button("Analyze Performance"):
+        if len(st.session_state.messages) < 2: st.warning("Insufficient data.")
+        else:
+            with st.spinner("Generating Assessment..."):
+                t = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+                p = f"Context: {brief}\nTranscript: {t}\nTask: Grade (0-100). Comm(0-40), Strat(0-40). JSON."
+                try:
+                    r = client.models.generate_content(model='gemini-2.0-flash', contents=p, config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Scorecard, temperature=0.1)).parsed
+                    
+                    safe_total = min(max(r.total_score, 0), 100)
+                    c1, c2, c3 = st.columns([1,1,2])
+                    with c1: st.metric("Total Score", f"{safe_total}/100"); st.progress(safe_total/100)
+                    with c2: st.metric("Commercial", f"{r.commercial}/40"); st.metric("Strategy", f"{r.strategy}/40")
+                    with c3: st.info(f"**Feedback:** {r.feedback}")
+                    
+                    pdf_data = create_pdf(selected_label, brief, {"total": safe_total, "comm": r.commercial, "strat": r.strategy}, r.feedback, st.session_state.messages)
+                    st.download_button("📄 Download Professional AAR (PDF)", pdf_data, "AAR_Report.pdf", "application/pdf")
+                except Exception as e: st.error(f"Error: {e}")
