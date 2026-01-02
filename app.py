@@ -1,12 +1,20 @@
 import streamlit as st
 import sqlite3
-from google import genai
-from google.genai import types
-from pydantic import BaseModel
+import os
 import time
 from fpdf import FPDF
+from pydantic import BaseModel
 
-# --- 1. APP CONFIGURATION ---
+# --- 1. AUTHENTICATION SETUP (Cloud Compatible) ---
+# Try to import the Google GenAI library
+try:
+    from google import genai
+    from google.genai import types
+except ImportError:
+    st.error("⚠️ Library Error: `google-genai` not found. Please add it to requirements.txt")
+    st.stop()
+
+# --- 2. APP CONFIGURATION ---
 st.set_page_config(
     page_title="Procurement Pro",
     layout="wide",
@@ -14,26 +22,35 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. GLOBAL STATE ---
+# --- 3. GLOBAL STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(time.time())
 
-# --- 3. AI CONNECTION ---
-PROJECT_ID = "gen-lang-client-0365682686"
-LOCATION = "us-central1"
-
+# --- 4. CONNECT TO AI (API Key Support) ---
 @st.cache_resource
 def get_client():
+    # 1. Try getting key from Streamlit Secrets (Best for Cloud)
+    api_key = os.environ.get("GEMINI_API_KEY")
+    
+    if not api_key:
+        try:
+            # Fallback for local testing (Secrets file)
+            api_key = st.secrets["GEMINI_API_KEY"]
+        except:
+            return None
+
     try:
-        return genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
+        # Initialize Client with API Key
+        return genai.Client(api_key=api_key, http_options={'api_version': 'v1alpha'})
     except Exception as e:
+        print(f"Auth Error: {e}")
         return None
 
 client = get_client()
 
-# --- 4. DATA LAYER (20 SCENARIOS) ---
+# --- 5. DATA LAYER (20 SCENARIOS) ---
 DB_FILE = 'procurement_ultimate.db'
 
 def init_db():
@@ -99,7 +116,7 @@ def get_details(sid):
     conn = sqlite3.connect(DB_FILE)
     return conn.cursor().execute("SELECT user_brief, system_persona FROM scenarios WHERE id=?", (sid,)).fetchone()
 
-# --- 5. PDF ENGINE ---
+# --- 6. PDF ENGINE ---
 def create_pdf(title, brief, score_data, feedback, transcript):
     class PDF(FPDF):
         def header(self):
@@ -136,7 +153,7 @@ def create_pdf(title, brief, score_data, feedback, transcript):
         
     return pdf.output(dest='S').encode('latin-1')
 
-# --- 6. PROFESSIONAL UI ---
+# --- 7. PROFESSIONAL UI ---
 with st.sidebar:
     # 🎨 CUSTOM BRANDING
     st.markdown("""
@@ -147,12 +164,11 @@ with st.sidebar:
         <div class="big-font">Procurement Pro</div>
         """, unsafe_allow_html=True)
     
-    st.caption("Advanced Negotiation Simulator v2.0")
+    st.caption("Advanced Negotiation Simulator v3.0")
     st.markdown("---")
     
     # SCENARIO SELECTOR
     scenarios = get_scenarios()
-    # Format: "Category | Title (Diff)"
     options = {f"{s[2]} | {s[1]} ({s[3]})": s[0] for s in scenarios}
     selected_label = st.selectbox("Select Mission", list(options.keys()))
     selected_id = options[selected_label]
@@ -169,7 +185,7 @@ with st.sidebar:
         if not st.session_state.messages:
             st.warning("Initiate negotiation first.")
         elif not client:
-            st.error("AI Offline.")
+            st.error("AI Offline. Check API Key.")
         else:
             with st.spinner("Analyzing leverage points..."):
                 t = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
@@ -187,7 +203,10 @@ with st.sidebar:
 st.markdown(f"### {selected_label.split('|')[1].strip()}") 
 
 # CHAT INTERFACE
-if not client: st.error("⚠️ Enterprise AI Offline."); st.stop()
+if not client: 
+    st.error("⚠️ AI Service Offline. Please add `GEMINI_API_KEY` to your Environment Variables.")
+    st.info("You can get a free key at **aistudio.google.com**")
+    st.stop()
 
 for msg in st.session_state.messages:
     avatar = "👤" if msg["role"] == "user" else "👔"
