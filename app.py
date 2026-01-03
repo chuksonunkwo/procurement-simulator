@@ -1,6 +1,5 @@
 # ======================================================
-# 🔒 PROCUREMENT SIMULATOR PRO: COMMERCIAL RELEASE
-#    Product ID: MFZpNGyCplKf9iTHq2f2xg==
+# 🔒 PROCUREMENT SIMULATOR PRO: FINAL PRODUCTION BUILD
 # ======================================================
 import os
 import time
@@ -16,7 +15,7 @@ if not os.path.exists("cloudflared-linux-amd64"):
     subprocess.run(["wget", "-q", "-O", "cloudflared-linux-amd64", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"], check=True)
     subprocess.run(["chmod", "+x", "cloudflared-linux-amd64"], check=True)
 
-# --- 3. REQUIREMENTS (For Cloud Deployment) ---
+# --- 3. REQUIREMENTS ---
 with open("requirements.txt", "w") as f:
     f.write("streamlit\ngoogle-genai\nsqlalchemy\nfpdf\nrequests\npydantic\n")
 
@@ -36,21 +35,27 @@ from pydantic import BaseModel
 st.set_page_config(page_title="Procurement Simulator Pro", layout="wide", page_icon="💼", initial_sidebar_state="expanded")
 
 # --- 🔒 LICENSE GATEKEEPER ---
-# ✅ UPDATED: Your specific Gumroad Product ID
-GUMROAD_PERMALINK = "MFZpNGyCplKf9iTHq2f2xg==" 
+# ✅ UPDATED: Using Product ID specifically
+GUMROAD_PRODUCT_ID = "MFZpNGyCplKf9iTHq2f2xg==" 
 
 def check_gumroad_license(license_key):
     try:
-        # Calls Gumroad API to verify the key belongs to your product
+        # We try verifying by ID first. 
+        # Note: If this fails, ensure your Permlink (e.g. 'procurement-sim') is used instead.
+        # But since you provided an ID, we send it as 'product_id'.
         r = requests.post("https://api.gumroad.com/v2/licenses/verify", 
-                         data={"product_permalink": GUMROAD_PERMALINK, "license_key": license_key.strip()})
+                         data={
+                             "product_id": GUMROAD_PRODUCT_ID, 
+                             "license_key": license_key.strip()
+                         })
         data = r.json()
         
-        # 1. Check if success is True
-        # 2. Check if purchase is NOT refunded/cancelled
+        # Check success and ensure not refunded
         is_valid = data.get("success", False) and not data.get("purchase", {}).get("refunded", False)
         return is_valid
-    except: 
+    except Exception as e:
+        # Fallback logging (invisible to user)
+        print(f"Verification Error: {e}")
         return False
 
 if "authenticated" not in st.session_state:
@@ -84,10 +89,11 @@ if not st.session_state.authenticated:
     
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        license_input = st.text_input("License Key", placeholder="KW...-....", type="password")
+        # REMOVED PLACEHOLDER TEXT as requested
+        license_input = st.text_input("License Key", placeholder="", type="password")
         
         if st.button("Validate & Login", type="primary", use_container_width=True):
-            with st.spinner("Verifying License with Gumroad..."):
+            with st.spinner("Verifying License..."):
                 if check_gumroad_license(license_input):
                     st.session_state.authenticated = True
                     st.success("✅ License Verified.")
@@ -97,17 +103,13 @@ if not st.session_state.authenticated:
                     st.error("❌ Invalid License Key. Access Denied.")
     st.stop()
 
-# ==========================================
-#  💼 MAIN APPLICATION (Protected Area)
-# ==========================================
-
+# --- MAIN APP ---
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# AI SETUP
 try:
     from google import genai
     from google.genai import types
-except ImportError: st.error("System Error: AI Library missing."); st.stop()
+except ImportError: st.error("AI Library Error"); st.stop()
 
 @st.cache_resource
 def get_client():
@@ -120,14 +122,12 @@ def get_client():
 
 client = get_client()
 
-# DATABASE SETUP
+# DATABASE
 DB_FILE = 'procurement_sim_final.db'
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS scenarios (id INTEGER PRIMARY KEY, title TEXT, category TEXT, difficulty TEXT, user_brief TEXT, system_persona TEXT)")
-    
-    # Fast load: Only insert if empty
     c.execute("SELECT count(*) FROM scenarios")
     if c.fetchone()[0] == 0:
         data = [
@@ -154,7 +154,6 @@ def init_db():
         ]
         c.executemany('INSERT INTO scenarios (title, category, difficulty, user_brief, system_persona) VALUES (?,?,?,?,?)', data)
         conn.commit()
-
 init_db()
 
 def get_scenarios():
@@ -164,7 +163,7 @@ def get_details(sid):
     conn = sqlite3.connect(DB_FILE)
     return conn.cursor().execute("SELECT user_brief, system_persona FROM scenarios WHERE id=?", (sid,)).fetchone()
 
-# PDF GENERATOR
+# PDF
 def create_pdf(title, brief, score_data, feedback, transcript):
     class PDF(FPDF):
         def header(self):
@@ -173,7 +172,6 @@ def create_pdf(title, brief, score_data, feedback, transcript):
         def footer(self):
             self.set_y(-15); self.set_font('Arial', 'I', 8); self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
     def clean(t): return t.encode('latin-1', 'ignore').decode('latin-1')
-    
     pdf = PDF(); pdf.add_page(); pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_font('Arial', 'B', 12); pdf.cell(0, 10, '1. Scorecard', 0, 1)
     pdf.set_font('Arial', '', 11)
@@ -187,7 +185,7 @@ def create_pdf(title, brief, score_data, feedback, transcript):
     for m in transcript: pdf.multi_cell(0, 5, f"{m['role'].upper()}: {clean(m['content'])}"); pdf.ln(1)
     return pdf.output(dest='S').encode('latin-1')
 
-# UI SIDEBAR
+# UI
 with st.sidebar:
     st.markdown("""
         <style>
@@ -199,14 +197,12 @@ with st.sidebar:
         <div class="version-font">Version 1.0 | Enterprise Edition</div>
     """, unsafe_allow_html=True)
     st.markdown("---")
-    
     scenarios = get_scenarios()
     options = {f"{s[2]} | {s[1]} ({s[3]})": s[0] for s in scenarios}
     selected_label = st.selectbox("Select Mission", list(options.keys()))
     selected_id = options[selected_label]
     brief, persona = get_details(selected_id)
     with st.expander("📋 Mission Briefing", expanded=True): st.markdown(brief)
-    
     st.markdown("---"); st.subheader("🛠️ Tactical Support")
     if st.button("💡 Strategic Whisper"):
         if not st.session_state.messages: st.warning("Start negotiating first.")
@@ -221,7 +217,7 @@ with st.sidebar:
     if st.button("🔄 Reset Session", type="primary"): st.session_state.messages = []; st.rerun()
     st.markdown("---"); st.caption("**Disclaimer:** Training simulation. Fictional scenarios. Not professional advice.")
 
-# MAIN CHAT
+# CHAT
 st.markdown(f"### {selected_label.split('|')[1].strip()}") 
 if not client: st.error("⚠️ AI Key Missing. Please set GEMINI_API_KEY env var."); st.stop()
 
@@ -281,7 +277,7 @@ for i in range(10):
             url_match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", content)
             if url_match:
                 print(f"\n✅ YOUR APP URL: {url_match.group(0)}\n")
-                print("🔒 LOCKED: Requires valid license for Product ID 'MFZpNGyCplKf9iTHq2f2xg=='")
+                print(f"🔒 PROTECTED: Requires valid License Key for Product ID 'MFZpNGyCplKf9iTHq2f2xg=='")
                 found_url = True
                 break
     except: pass
