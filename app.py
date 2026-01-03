@@ -1,5 +1,5 @@
 # ======================================================
-# 🔒 PROCUREMENT SIMULATOR PRO: FINAL MASTER BUILD
+# 🔒 PROCUREMENT SIMULATOR PRO: GOLDEN MASTER
 # ======================================================
 import os
 import time
@@ -58,15 +58,9 @@ if not st.session_state.authenticated:
     st.markdown("""
         <style>
         .lock-box { 
-            text-align: center; 
-            margin-top: 80px; 
-            padding: 50px; 
-            border: 1px solid #e0e0e0; 
-            border-radius: 12px; 
-            background-color: #ffffff;
-            max-width: 550px; 
-            margin-left: auto; 
-            margin-right: auto; 
+            text-align: center; margin-top: 80px; padding: 50px; 
+            border: 1px solid #e0e0e0; border-radius: 12px; background-color: #ffffff;
+            max-width: 550px; margin-left: auto; margin-right: auto; 
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         h1 { color: #154360; font-family: 'Helvetica', sans-serif; }
@@ -121,87 +115,30 @@ def init_db():
     c.execute("CREATE TABLE IF NOT EXISTS scenarios (id INTEGER PRIMARY KEY, title TEXT, category TEXT, difficulty TEXT, user_brief TEXT, system_persona TEXT)")
     c.execute("SELECT count(*) FROM scenarios")
     if c.fetchone()[0] == 0:
-        # DATA WITH ENHANCED CONTEXT
+        # 22 SCENARIOS
         data = [
-            ("EPC Steel Variation Claim", "Construction", "Hard", 
-             "**Role:** Project Director (Owner)\n**Context:** Your EPC contractor has submitted a $5M variation order citing global steel price hikes. The contract is Lump Sum Turnkey (LSTK), meaning they explicitly assumed this risk.\n**Goal:** Firmly reject the price increase while ensuring they do not slow down the project schedule due to cash flow issues.", 
-             "**Role:** Contractor PM.\n**Motivation:** Your HQ is squeezing you. You are facing liquidity issues. You need this cash or you will be forced to slow down works."),
-            
-            ("Camp Construction Delay", "Construction", "Medium", 
-             "**Role:** Site Manager\n**Context:** The modular camp units are 2 months late. The contractor is blaming 'unforeseeable weather' (Force Majeure), but your logs show the weather was mild.\n**Goal:** Reject the Force Majeure claim. Demand a recovery plan and acceleration at their own cost to hit the start date.", 
-             "**Role:** Construction Lead.\n**Motivation:** It was mismanagement, but you can't admit that. You want the client to pay for the overtime needed to catch up."),
-            
-            ("Deepwater Rig Rate", "Drilling", "Medium", 
-             "**Role:** Wells Category Lead\n**Context:** Oil prices have dropped, and the rig market is soft. Your current rig rate is 30% above the new market average.\n**Goal:** Renegotiate the current contract rate down by 20%. You can offer a 1-year contract extension as leverage.", 
-             "**Role:** Rig Contractor.\n**Motivation:** You are terrified of having to 'stack' (idle) the rig, which costs millions. You will act tough, but you need this extension."),
-            
-            ("FPSO Termination Threat", "Production", "Expert", 
-             "**Role:** Asset Manager\n**Context:** The FPSO uptime has dropped to 85% (Contract Target: 95%). This is costing you daily production revenue. They are making excuses about spare parts.\n**Goal:** Issue a formal notice requiring a Remedial Plan within 7 days, or threaten to issue a Default Notice.", 
-             "**Role:** FPSO Operator.\n**Motivation:** The spare parts are stuck in customs due to your administrative error. You are terrified of losing this contract."),
-            
-            ("SaaS Renewal Hike", "IT", "Medium", 
-             "**Role:** IT Procurement Manager\n**Context:** Your critical software vendor has proposed a 15% price increase for the renewal, citing 'inflation' and 'new features' you don't use.\n**Goal:** Cap the increase at 3% (CPI). Remove the 'Auto-Renewal' clause from the new agreement.", 
-             "**Role:** Software Sales VP.\n**Motivation:** You have a quarterly revenue target to hit. You can trade price discount if they sign a longer term (3 years)."),
-            
-            ("Software License Audit", "IT", "Hard", 
-             "**Role:** CIO\n**Context:** A vendor audit claims you are non-compliant and owe $2M in penalties. You believe their data methodology is flawed and counts inactive users.\n**Goal:** Settle for less than $200k. Prove their usage data is incorrect.", 
-             "**Role:** Compliance Auditor.\n**Motivation:** Your personal bonus is directly tied to the size of the penalty you collect. You have 'proof' (though it might be shaky)."),
-            
-            ("Data Breach Compensation", "IT", "Expert", 
-             "**Role:** Legal Counsel\n**Context:** Your cloud provider had a breach that leaked some of your employee data. They are offering a generic apology.\n**Goal:** Secure 1-year of free service credits and paid Identity Theft Monitoring for all affected employees.", 
-             "**Role:** Cloud Provider.\n**Motivation:** Your contract limits liability to 1 month of fees. You want to stick to the contract strict terms."),
-            
-            ("Logistics Demurrage", "Logistics", "Easy", 
-             "**Role:** Logistics Superintendent\n**Context:** A vessel was delayed 3 days at port. The shipowner is claiming $50k in demurrage fees. The delay was actually caused by the vessel's own crane breaking down.\n**Goal:** Pay $0. Establish that the delay was due to vessel equipment failure, not the port.", 
-             "**Role:** Shipowner.\n**Motivation:** You know the crane was shaky, but you will blame 'Port Congestion' to try and get paid. You need cash for fuel."),
-            
-            ("Helicopter Fuel Surcharge", "Logistics", "Medium", 
-             "**Role:** Category Lead\n**Context:** Your aviation provider wants a fixed 10% rate hike to cover rising fuel costs. You want to avoid locking in a high rate if fuel drops later.\n**Goal:** Reject the fixed hike. Agree only to a floating 'Fuel Surcharge Mechanism' that goes up/down with the market index.", 
-             "**Role:** Heli Operator.\n**Motivation:** Fuel prices spiked and are eating your margin. You want a fixed hike to guarantee profit."),
-            
-            ("Warehousing Exclusivity", "Logistics", "Easy", 
-             "**Role:** Supply Base Manager\n**Context:** A warehouse owner offers a good rate but demands a 5-year exclusive contract. You expect your drilling campaign to end in 2 years.\n**Goal:** Secure the lease for 2 years with an option to extend. Do not agree to exclusivity.", 
-             "**Role:** Warehouse Owner.\n**Motivation:** You need a long-term signed lease to show your bank to secure a loan."),
-            
-            ("Consultancy Rate Hike", "Corporate", "Medium", 
-             "**Role:** HR Director\n**Context:** Your strategy consulting firm wants to increase hourly rates by 10%. They claim 'talent retention costs'. You have a frozen budget.\n**Goal:** Hold rates flat. Offer to expand their scope to other projects (volume) in exchange for rate stability.", 
-             "**Role:** Partner.\n**Motivation:** Inflation is high, but you care more about utilization. You might trade rate for a guaranteed volume of work."),
-            
-            ("Office Lease Renewal", "Real Estate", "Hard", 
-             "**Role:** Facilities Manager\n**Context:** Your landlord wants a 20% rent hike for the HQ renewal. The commercial real estate market is actually softening.\n**Goal:** Renew flat or with a max 2% increase. Threaten to move to the cheaper suburbs.", 
-             "**Role:** Landlord.\n**Motivation:** You are bluffing that you have another tenant lined up. You actually can't afford to have the building empty."),
-            
-            ("Travel Agency Rebate", "Corporate", "Easy", 
-             "**Role:** Procurement Lead\n**Context:** You are selecting a new Global Travel Agency. You have a spend of $10M/year.\n**Goal:** Secure a 3% rebate on all booked volume, payable annually.", 
-             "**Role:** Agency Rep.\n**Motivation:** Margins are thin. 3% is too high, you usually offer 1%. You might budge if they promise 100% exclusivity."),
-            
-            ("Pollution Liability Cap", "Legal", "Hard", 
-             "**Role:** General Counsel\n**Context:** A tugboat owner wants to cap their pollution liability at $5M. Your risk analysis shows a spill could cost $50M.\n**Goal:** Insist on Unlimited Liability, or at minimum a $50M cap backed by insurance.", 
-             "**Role:** Vessel Owner.\n**Motivation:** Your insurance policy only covers $10M. You literally cannot sign for more than that."),
-            
-            ("JV Partner Approval", "Governance", "Hard", 
-             "**Role:** Asset Manager (Operator)\n**Context:** You need to sole-source a $2M urgent repair to a specific vendor. Your Non-Operating Partner (NOP) usually demands a full tender process.\n**Goal:** Convince the Partner to waive the tender requirement to save critical time.", 
-             "**Role:** Partner (NOP).\n**Motivation:** You suspect the Operator is 'gold-plating' costs. You want to block this unless they can prove a safety risk."),
-            
-            ("Force Majeure Claim", "Legal", "Expert", 
-             "**Role:** Contract Manager\n**Context:** A supplier has declared Force Majeure due to a 'severe storm' to excuse a missed delivery. Weather data shows the storm was minor and predictable.\n**Goal:** Formally reject the Force Majeure claim. Enforce Liquidated Damages (LDs) for the delay.", 
-             "**Role:** Supplier.\n**Motivation:** The factory was actually damaged due to poor maintenance, not the storm. You need the FM claim to avoid penalties."),
-            
-            ("IP Ownership Dispute", "R&D", "Hard", 
-             "**Role:** R&D Lead\n**Context:** You are co-developing a new sensor with a startup. They want to own the Intellectual Property (IP). You are funding 100% of the dev cost.\n**Goal:** Secure 100% ownership of the IP. Offer them a royalty-free license to use it in other non-competing industries.", 
-             "**Role:** Startup CEO.\n**Motivation:** This IP is your company's only real asset. If you sell it, you have nothing."),
-            
-            ("Local Content Quota", "ESG", "Medium", 
-             "**Role:** Local Content Manager\n**Context:** New government regulations mandate 40% local spend. Your prime contractor is currently at 15% and making excuses.\n**Goal:** Demand a detailed 'Local Content Plan' to hit 40% within 6 months. Threaten to withhold payments.", 
-             "**Role:** Prime Contractor.\n**Motivation:** Local suppliers are expensive and untrained. Meeting this target will eat your entire profit margin."),
-            
-            ("HSE Incident Reporting", "HSE", "Medium", 
-             "**Role:** HSE Manager\n**Context:** You discovered a contractor supervisor hid a 'Near Miss' incident to protect their safety stats.\n**Goal:** Issue a formal reprimand. Reset their safety bonus to 0% for this quarter to send a message.", 
-             "**Role:** Site Supervisor.\n**Motivation:** If the crew loses their bonus, they will mutiny. You tried to hide it to keep morale up."),
-            
-            ("Green Energy Premium", "ESG", "Medium", 
-             "**Role:** Power Buyer\n**Context:** You are buying renewable power (RECs) to meet corporate net-zero goals. The generator wants a 15% premium over grid prices.\n**Goal:** Negotiate the premium down to <5%. Argue that long-term offtake security is worth the discount.", 
-             "**Role:** Solar Generator.\n**Motivation:** Demand for green power is skyrocketing. You have other buyers lined up who might pay more.")
+            ("EPC Steel Variation Claim", "Construction", "Hard", "**Role:** Project Director (Owner)\n**Context:** Your EPC contractor has submitted a $5M variation order citing global steel price hikes. The contract is Lump Sum Turnkey (LSTK).\n**Goal:** Firmly reject the price increase. Ensure schedule adherence.", "**Role:** Contractor PM.\n**Motivation:** Needs cash for liquidity."),
+            ("Camp Construction Delay", "Construction", "Medium", "**Role:** Site Manager\n**Context:** Camp units are 2 months late. Contractor blames 'weather' (Force Majeure), but weather was mild.\n**Goal:** Reject Force Majeure. Demand acceleration at their cost.", "**Role:** Construction Lead.\n**Motivation:** Mismanaged project. Needs client to pay for overtime."),
+            ("Deepwater Rig Rate", "Drilling", "Medium", "**Role:** Wells Category Lead\n**Context:** Market is soft. Current rig rate is 30% above market.\n**Goal:** Renegotiate rate down 20%. Offer 1-year extension as leverage.", "**Role:** Rig Contractor.\n**Motivation:** Terrified of stacking the rig. Needs the extension."),
+            ("FPSO Termination Threat", "Production", "Expert", "**Role:** Asset Manager\n**Context:** FPSO uptime dropped to 85% (Target 95%).\n**Goal:** Issue notice for Remedial Plan or threaten Default.", "**Role:** FPSO Operator.\n**Motivation:** Parts stuck in customs. Terrified of losing contract."),
+            ("SaaS Renewal Hike", "IT", "Medium", "**Role:** IT Procurement Mgr\n**Context:** Vendor proposes 15% hike. Cites 'inflation'.\n**Goal:** Cap increase at 3% (CPI). Remove Auto-Renewal.", "**Role:** Sales VP.\n**Motivation:** Needs quarterly revenue. Can trade price for 3-year term."),
+            ("Software License Audit", "IT", "Hard", "**Role:** CIO\n**Context:** Audit claims $2M penalty for 'unlicensed usage'. Methodology is flawed.\n**Goal:** Settle <$200k. Disprove data.", "**Role:** Auditor.\n**Motivation:** Bonus tied to penalty size."),
+            ("Data Breach Compensation", "IT", "Expert", "**Role:** Legal Counsel\n**Context:** Vendor data breach leaked employee info.\n**Goal:** Secure 1-yr free service + Identity Monitoring.", "**Role:** Cloud Provider.\n**Motivation:** Contract limits liability to 1 month fees."),
+            ("Logistics Demurrage", "Logistics", "Easy", "**Role:** Logistics Supt\n**Context:** Vessel delayed 3 days. Owner claims $50k. Delay was vessel crane failure.\n**Goal:** Pay $0.", "**Role:** Shipowner.\n**Motivation:** Needs cash for fuel. Blaming 'port congestion'."),
+            ("Helicopter Fuel Surcharge", "Logistics", "Medium", "**Role:** Category Lead\n**Context:** Provider wants fixed 10% hike for fuel.\n**Goal:** Reject fixed hike. Agree only to floating Fuel Index mechanism.", "**Role:** Heli Operator.\n**Motivation:** Margins are zero. Wants fixed profit."),
+            ("Warehousing Exclusivity", "Logistics", "Easy", "**Role:** Supply Base Mgr\n**Context:** Warehouse owner demands 5-year exclusive deal.\n**Goal:** 2-year lease. Non-exclusive.", "**Role:** Warehouse Owner.\n**Motivation:** Needs long lease for bank loan."),
+            ("Consultancy Rate Hike", "Corporate", "Medium", "**Role:** HR Director\n**Context:** Strategy firm wants +10% rate hike.\n**Goal:** Flat rates. Offer volume/scope expansion instead.", "**Role:** Partner.\n**Motivation:** High salary inflation. Needs utilization."),
+            ("Office Lease Renewal", "Real Estate", "Hard", "**Role:** Facilities Mgr\n**Context:** Landlord wants +20% rent. Market is soft.\n**Goal:** Flat renewal. Threaten to move.", "**Role:** Landlord.\n**Motivation:** Bluffing about other tenant. Cannot afford vacancy."),
+            ("Travel Agency Rebate", "Corporate", "Easy", "**Role:** Procurement Lead\n**Context:** Selecting new Global Agency. $10M spend.\n**Goal:** 3% rebate on volume.", "**Role:** Agency Rep.\n**Motivation:** Thin margins. 1% max."),
+            ("FX & Inflation Indexing", "Commercial", "Medium", "**Role:** Category Manager\n**Context:** Supplier wants to switch currency to USD and index to US PPI.\n**Goal:** Keep local currency. Cap inflation index at 2%.", "**Role:** Manufacturer.\n**Motivation:** Raw materials in USD. Losing margin on FX."),
+            ("MSA Liability Negotiation", "Contracting", "Hard", "**Role:** Contracts Lead\n**Context:** Vendor insists on mutual waiver of Consequential Damages.\n**Goal:** Retain right to claim lost profits for Gross Negligence.", "**Role:** Sales VP.\n**Motivation:** Legal says no. Can move on price/rates."),
+            ("Pollution Liability Cap", "Legal", "Hard", "**Role:** General Counsel\n**Context:** Tug owner wants $5M cap. Risk is $50M.\n**Goal:** Unlimited Liability or $50M min.", "**Role:** Vessel Owner.\n**Motivation:** Insurance limit is $10M."),
+            ("JV Partner Approval", "Governance", "Hard", "**Role:** Asset Mgr (Operator)\n**Context:** Need sole-source $2M repair. Partner wants tender.\n**Goal:** Get approval to bypass tender.", "**Role:** Partner (NOP).\n**Motivation:** Suspects gold-plating. Demands tender."),
+            ("Force Majeure Claim", "Legal", "Expert", "**Role:** Contract Mgr\n**Context:** Supplier declares FM (Storm). Weather was mild.\n**Goal:** Reject FM. Enforce penalties.", "**Role:** Supplier.\n**Motivation:** Factory damaged by poor maintenance, not storm."),
+            ("IP Ownership Dispute", "R&D", "Hard", "**Role:** R&D Lead\n**Context:** Co-developing sensor. Startup wants IP ownership.\n**Goal:** We own IP. They get license.", "**Role:** Startup CEO.\n**Motivation:** IP is only asset."),
+            ("Local Content Quota", "ESG", "Medium", "**Role:** Content Mgr\n**Context:** Govt mandates 40% local spend. Contractor at 15%.\n**Goal:** Enforce 40% target plan.", "**Role:** Prime Contractor.\n**Motivation:** Locals are expensive/untrained."),
+            ("HSE Incident Reporting", "HSE", "Medium", "**Role:** HSE Mgr\n**Context:** Supervisor hid 'Near Miss'.\n**Goal:** Reset safety bonus to 0%.", "**Role:** Supervisor.\n**Motivation:** Protecting crew bonus."),
+            ("Green Energy Premium", "ESG", "Medium", "**Role:** Power Buyer\n**Context:** Buying renewable power. Generator wants 15% premium.\n**Goal:** <5% premium.", "**Role:** Solar Generator.\n**Motivation:** High demand.")
         ]
         c.executemany('INSERT INTO scenarios (title, category, difficulty, user_brief, system_persona) VALUES (?,?,?,?,?)', data)
         conn.commit()
@@ -209,7 +146,11 @@ init_db()
 
 def get_scenarios():
     conn = sqlite3.connect(DB_FILE)
-    return conn.cursor().execute("SELECT id, title, category, difficulty FROM scenarios ORDER BY category, title").fetchall()
+    rows = conn.cursor().execute("SELECT id, title, category, difficulty FROM scenarios ORDER BY category, title").fetchall()
+    # ADD CUSTOM OPTION TO TOP OF LIST
+    rows.insert(0, (999, "🛠️ Create Custom Scenario", "Custom", "Manual"))
+    return rows
+
 def get_details(sid):
     conn = sqlite3.connect(DB_FILE)
     return conn.cursor().execute("SELECT user_brief, system_persona FROM scenarios WHERE id=?", (sid,)).fetchone()
@@ -248,12 +189,40 @@ with st.sidebar:
         <div class="version-font">Version 1.0 | Enterprise Edition</div>
     """, unsafe_allow_html=True)
     st.markdown("---")
+    
+    # SCENARIO SELECTION LOGIC
     scenarios = get_scenarios()
     options = {f"{s[2]} | {s[1]} ({s[3]})": s[0] for s in scenarios}
     selected_label = st.selectbox("Select Mission", list(options.keys()))
     selected_id = options[selected_label]
-    brief, persona = get_details(selected_id)
-    with st.expander("📋 Mission Briefing", expanded=True): st.markdown(brief)
+    
+    brief_text = ""
+    persona_text = ""
+    
+    # CUSTOM SCENARIO MODE
+    if selected_id == 999:
+        st.info("🛠️ Define Your Own Scenario")
+        with st.form("custom_form"):
+            c_role = st.text_input("My Role", "Freelance Consultant")
+            c_context = st.text_area("Situation", "Client wants to expand scope by 50% without increasing budget.")
+            c_goal = st.text_input("My Goal", "Get $5k extra or cut scope.")
+            c_opp_role = st.text_input("Counterparty Role", "Project Manager")
+            c_opp_motiv = st.text_input("Counterparty Motivation", "Over budget already. Under pressure from VP.")
+            submitted = st.form_submit_button("Launch Simulation")
+            
+            if submitted:
+                st.session_state['custom_brief'] = f"**Role:** {c_role}\n**Context:** {c_context}\n**Goal:** {c_goal}"
+                st.session_state['custom_persona'] = f"**Role:** {c_opp_role}\n**Motivation:** {c_opp_motiv}"
+                st.session_state.messages = []
+                st.rerun()
+        
+        brief_text = st.session_state.get('custom_brief', "Fill out the form above to start.")
+        persona_text = st.session_state.get('custom_persona', "Waiting for input...")
+    else:
+        brief_text, persona_text = get_details(selected_id)
+
+    with st.expander("📋 Mission Briefing", expanded=True): st.markdown(brief_text)
+    
     st.markdown("---"); st.subheader("🛠️ Tactical Support")
     if st.button("💡 Strategic Whisper"):
         if not st.session_state.messages: st.warning("Start negotiating first.")
@@ -262,10 +231,12 @@ with st.sidebar:
             with st.spinner("Analyzing..."):
                 t = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
                 try:
-                    r = client.models.generate_content(model='gemini-2.0-flash', contents=f"Context: {brief}\nTranscript: {t}\nTask: Give ONE short tactical move.")
+                    r = client.models.generate_content(model='gemini-2.0-flash', contents=f"Context: {brief_text}\nTranscript: {t}\nTask: Give ONE short tactical move.")
                     st.info(f"**Coach:** {r.text}")
                 except: st.error("Coach unavailable.")
-    if st.button("🔄 Reset Session", type="primary"): st.session_state.messages = []; st.rerun()
+    if st.button("🔄 Reset Session", type="primary"): 
+        st.session_state.messages = []
+        st.rerun()
     st.markdown("---"); st.caption("**Disclaimer:** Training simulation. Fictional scenarios. Not professional advice.")
 
 # CHAT
@@ -279,7 +250,10 @@ for msg in st.session_state.messages:
 if user_input := st.chat_input("Enter your position..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user", avatar="👤"): st.markdown(user_input)
-    sys_prompt = f"Sim: {selected_label}\nRole: {persona}\nAct as professional counterparty. Concise. Tough."
+    
+    # DYNAMIC PROMPT (Works for both Custom and Preset)
+    sys_prompt = f"Sim: {selected_label}\n{persona_text}\nAct as professional counterparty. Concise. Tough."
+    
     gemini_hist = [types.Content(role="user" if m["role"]=="user" else "model", parts=[types.Part(text=m["content"])]) for m in st.session_state.messages]
     with st.chat_message("assistant", avatar="👔"):
         with st.spinner("Counterparty responding..."):
@@ -296,9 +270,8 @@ with st.expander("📊 End Session & Generate Report", expanded=False):
         else:
             with st.spinner("Generating Assessment..."):
                 t = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
-                # SCORING FIX: Explicitly instruct AI on limits + Safety Clamp
                 score_prompt = f"""
-                Context: {brief}
+                Context: {brief_text}
                 Transcript: {t}
                 Task: Grade performance. Returns JSON.
                 Rules: 
@@ -307,23 +280,15 @@ with st.expander("📊 End Session & Generate Report", expanded=False):
                 - strategy (0-40) [MAX IS 40]
                 """
                 try:
-                    r = client.models.generate_content(
-                        model='gemini-2.0-flash', 
-                        contents=score_prompt, 
-                        config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Scorecard, temperature=0.1)
-                    ).parsed
-                    
-                    # SAFETY CLAMP
+                    r = client.models.generate_content(model='gemini-2.0-flash', contents=score_prompt, config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Scorecard, temperature=0.1)).parsed
                     safe_total = min(max(r.total_score, 0), 100)
                     safe_comm = min(max(r.commercial, 0), 40)
                     safe_strat = min(max(r.strategy, 0), 40)
-                    
                     c1, c2, c3 = st.columns([1,1,2])
                     with c1: st.metric("Total Score", f"{safe_total}/100"); st.progress(safe_total/100)
                     with c2: st.metric("Commercial", f"{safe_comm}/40"); st.metric("Strategy", f"{safe_strat}/40")
                     with c3: st.info(f"**Feedback:** {r.feedback}")
-                    
-                    pdf_data = create_pdf(selected_label, brief, {"total": safe_total, "comm": safe_comm, "strat": safe_strat}, r.feedback, st.session_state.messages)
+                    pdf_data = create_pdf(selected_label, brief_text, {"total": safe_total, "comm": safe_comm, "strat": safe_strat}, r.feedback, st.session_state.messages)
                     st.download_button("📄 Download Professional AAR (PDF)", pdf_data, "AAR_Report.pdf", "application/pdf")
                 except Exception as e: st.error(f"Error: {e}")
 '''
