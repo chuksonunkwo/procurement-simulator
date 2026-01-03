@@ -1,25 +1,29 @@
-# ==========================================
-# 🚀 PROCUREMENT SIMULATOR PRO: FINAL MASTER CELL
-# ==========================================
-
+# ======================================================
+# 🏆 PROCUREMENT SIMULATOR PRO: GOLDEN MASTER (v1.0)
+# ======================================================
 import os
 import time
 import subprocess
 
-# 1. INSTALL DEPENDENCIES (Force Upgrade to fix ImportErrors)
+# --- 1. INSTALL DEPENDENCIES ---
 print("🛠️ Installing Enterprise Libraries...")
 subprocess.run(["pip", "install", "-q", "-U", "streamlit", "google-genai", "sqlalchemy", "fpdf", "requests", "pydantic"], check=True)
 
-# 2. DOWNLOAD CLOUDFLARE TUNNEL (Fixes Network Errors)
+# --- 2. DOWNLOAD CLOUDFLARE (Fixes Network Errors) ---
 if not os.path.exists("cloudflared-linux-amd64"):
-    print("☁️ Downloading Cloudflare Tunnel...")
+    print("☁️ Downloading Network Tunnel...")
     subprocess.run(["wget", "-q", "-O", "cloudflared-linux-amd64", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"], check=True)
     subprocess.run(["chmod", "+x", "cloudflared-linux-amd64"], check=True)
 
-# 3. WRITE THE APPLICATION FILE (app.py)
-print("📝 Writing Application Code (v0.1)...")
-# Note: We use double backslashes (\\n) for text to prevent line-break errors in the generated file.
-app_code = """
+# --- 3. GENERATE REQUIREMENTS.TXT (Crucial for Render) ---
+print("📄 Generating requirements.txt...")
+with open("requirements.txt", "w") as f:
+    f.write("streamlit\ngoogle-genai\nsqlalchemy\nfpdf\nrequests\npydantic\n")
+
+# --- 4. GENERATE APP.PY (Syntax-Safe Version) ---
+print("📝 Writing Application Code (v1.0)...")
+
+app_code = r'''
 import streamlit as st
 import sqlite3
 import os
@@ -36,12 +40,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. MONETIZATION & AUTH GATEKEEPER ---
-# ⚠️ REPLACE WITH YOUR GUMROAD PERMALINK
+# --- 2. MONETIZATION GATEKEEPER ---
 GUMROAD_PERMALINK = "procurement-sim-demo" 
 
 def check_gumroad_license(license_key):
-    if license_key == "admin-bypass": return True # Backdoor for testing
+    if license_key == "admin-bypass": return True 
     try:
         r = requests.post("https://api.gumroad.com/v2/licenses/verify", 
                          data={"product_permalink": GUMROAD_PERMALINK, "license_key": license_key})
@@ -52,44 +55,38 @@ def check_gumroad_license(license_key):
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# THE LOCK SCREEN
 if not st.session_state.authenticated:
-    st.markdown(\"\"\"
+    st.markdown("""
         <style>
-        .lock-box { text-align: center; margin-top: 50px; padding: 40px; border: 1px solid #ddd; border-radius: 10px; }
-        .big-icon { font-size: 60px; margin-bottom: 20px; }
+        .lock-box { text-align: center; margin-top: 50px; padding: 40px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin-left: auto; margin-right: auto; }
         </style>
         <div class="lock-box">
-            <div class="big-icon">🔒</div>
-            <h1>Procurement Simulator Pro</h1>
+            <h1>🔒 Procurement Simulator Pro</h1>
             <p>Enterprise Negotiation Training Environment</p>
         </div>
-    \"\"\", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
     
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        st.info("👋 Welcome. Please enter your License Key to proceed.")
-        license_input = st.text_input("License Key", placeholder="KW...-.... (Use 'admin-bypass' for demo)")
+        license_input = st.text_input("License Key", placeholder="Enter Key or 'admin-bypass'")
+        # API Key input for users who haven't set Env Vars
+        api_input = st.text_input("Google API Key (Optional)", type="password")
         
-        # API KEY INPUT (For Colab Users without Env Vars)
-        api_key_input = st.text_input("Google API Key (Optional if set in Env)", type="password", help="Get one at aistudio.google.com")
-        if api_key_input:
-            os.environ["GEMINI_API_KEY"] = api_key_input
-            
         if st.button("Unlock Access", type="primary", use_container_width=True):
+            if api_input: os.environ["GEMINI_API_KEY"] = api_input
+            
             if check_gumroad_license(license_input):
                 st.session_state.authenticated = True
                 st.success("Access Granted.")
                 time.sleep(1)
                 st.rerun()
             else:
-                st.error("❌ Invalid License Key.")
+                st.error("Invalid License Key.")
     st.stop()
 
-# --- 3. CORE APPLICATION ---
+# --- 3. CORE APP ---
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# AI CLIENT SETUP
 try:
     from google import genai
     from google.genai import types
@@ -106,43 +103,36 @@ def get_client():
 
 client = get_client()
 
-# DATABASE SETUP (20 Scenarios)
-DB_FILE = 'procurement_sim_v01.db'
+# DATA LAYER
+DB_FILE = 'procurement_sim_v1.db'
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("DROP TABLE IF EXISTS scenarios")
     c.execute("CREATE TABLE scenarios (id INTEGER PRIMARY KEY, title TEXT, category TEXT, difficulty TEXT, user_brief TEXT, system_persona TEXT)")
     
-    # FIXED: Using double backslashes \\n to prevent SyntaxErrors
+    # SAFER DATA INSERTION
     data = [
-        # CONSTRUCTION
-        ("EPC Steel Variation Claim", "Construction", "Hard", "**Role:** Project Director.\\n**Situation:** Contractor claims $5M for steel price hikes.\\n**Goal:** Reject hike.", "**Role:** Contractor PM.\\n**Motivation:** Needs cash for liquidity."),
-        ("Camp Construction Delay", "Construction", "Medium", "**Role:** Site Mgr.\\n**Situation:** Delivery delayed 2 months.\\n**Goal:** Demand acceleration.", "**Role:** Construction Lead.\\n**Motivation:** Weather delay (FM). Won't pay acceleration."),
-        # DRILLING
-        ("Deepwater Rig Rate", "Drilling", "Medium", "**Role:** Wells Lead.\\n**Situation:** Oil down. Rates down 30%.\\n**Goal:** -20% rate. 1yr extension.", "**Role:** Rig Contractor.\\n**Motivation:** Terrified of stacking rig."),
-        ("FPSO Termination Threat", "Production", "Expert", "**Role:** Asset Mgr.\\n**Situation:** 85% uptime.\\n**Goal:** Remedial plan or Default Notice.", "**Role:** FPSO Operator.\\n**Motivation:** Parts stuck in customs."),
-        # IT
-        ("SaaS Renewal Hike", "IT", "Medium", "**Role:** IT Buyer.\\n**Situation:** +15% hike.\\n**Goal:** Cap at 3%. No auto-renewal.", "**Role:** Sales VP.\\n**Motivation:** Needs quarterly target. Can trade term for price."),
-        ("Software License Audit", "IT", "Hard", "**Role:** CIO.\\n**Situation:** $2M penalty claim.\\n**Goal:** Settle <$200k.", "**Role:** Auditor.\\n**Motivation:** Bonus tied to penalty size."),
-        ("Data Breach Compensation", "IT", "Expert", "**Role:** Legal.\\n**Situation:** Data leak.\\n**Goal:** 1yr free service + monitoring.", "**Role:** Cloud Provider.\\n**Motivation:** Limit liability to 1 month fees."),
-        # LOGISTICS
-        ("Logistics Demurrage", "Logistics", "Easy", "**Role:** Logistics Supt.\\n**Situation:** 3 day delay. $50k claim.\\n**Goal:** Pay $0.", "**Role:** Shipowner.\\n**Motivation:** Needs cash for fuel."),
-        ("Helicopter Fuel Surcharge", "Logistics", "Medium", "**Role:** Category Lead.\\n**Situation:** +10% fuel surcharge.\\n**Goal:** Floating mechanism only.", "**Role:** Heli Operator.\\n**Motivation:** Zero margin without hike."),
-        ("Warehousing Exclusivity", "Logistics", "Easy", "**Role:** Supply Mgr.\\n**Situation:** Owner wants 5yr exclusive.\\n**Goal:** 2yr non-exclusive.", "**Role:** Owner.\\n**Motivation:** Needs lease for bank loan."),
-        # CORPORATE
-        ("Consultancy Rate Hike", "Corporate", "Medium", "**Role:** HR Director.\\n**Situation:** +10% rate ask.\\n**Goal:** Flat rates.", "**Role:** Partner.\\n**Motivation:** Salary inflation high."),
-        ("Office Lease Renewal", "Real Estate", "Hard", "**Role:** Facilities Mgr.\\n**Situation:** +20% rent ask.\\n**Goal:** Flat or move.", "**Role:** Landlord.\\n**Motivation:** Bluffing about other tenant."),
-        ("Travel Agency Rebate", "Corporate", "Easy", "**Role:** Procurement Lead.\\n**Situation:** New Agency.\\n**Goal:** 3% rebate.", "**Role:** Agency Rep.\\n**Motivation:** Thin margins. 1% max."),
-        # LEGAL
-        ("Pollution Liability Cap", "Legal", "Hard", "**Role:** Counsel.\\n**Situation:** Wants $5M cap.\\n**Goal:** Unlimited or $50M.", "**Role:** Owner.\\n**Motivation:** Insurance limit is $10M."),
-        ("JV Partner Approval", "Governance", "Hard", "**Role:** Asset Mgr.\\n**Situation:** Sole-source $2M.\\n**Goal:** Partner approval.", "**Role:** Partner.\\n**Motivation:** Suspects gold-plating."),
-        ("Force Majeure Claim", "Legal", "Expert", "**Role:** Contract Mgr.\\n**Situation:** Supplier declares FM (Storm).\\n**Goal:** Reject FM.", "**Role:** Supplier.\\n**Motivation:** Factory damaged."),
-        ("IP Ownership Dispute", "R&D", "Hard", "**Role:** R&D Lead.\\n**Situation:** Joint dev.\\n**Goal:** We own IP.", "**Role:** Startup CEO.\\n**Motivation:** IP is only asset."),
-        # ESG
-        ("Local Content Quota", "ESG", "Medium", "**Role:** Content Mgr.\\n**Situation:** 40% mandate.\\n**Goal:** Enforce target.", "**Role:** Supplier.\\n**Motivation:** Locals untrained."),
-        ("HSE Incident Reporting", "HSE", "Medium", "**Role:** HSE Mgr.\\n**Situation:** Hidden Near Miss.\\n**Goal:** Reset bonus.", "**Role:** Supervisor.\\n**Motivation:** Protecting crew bonus."),
-        ("Green Energy Premium", "ESG", "Medium", "**Role:** Power Buyer.\\n**Situation:** Buying renewable.\\n**Goal:** <5% premium.", "**Role:** Generator.\\n**Motivation:** High demand.")
+        ("EPC Steel Variation Claim", "Construction", "Hard", "**Role:** Project Director.\n**Situation:** Contractor claims $5M for steel price hikes.\n**Goal:** Reject hike.", "**Role:** Contractor PM.\n**Motivation:** Needs cash for liquidity."),
+        ("Camp Construction Delay", "Construction", "Medium", "**Role:** Site Mgr.\n**Situation:** Delivery delayed 2 months.\n**Goal:** Demand acceleration.", "**Role:** Construction Lead.\n**Motivation:** Weather delay (FM). Won't pay acceleration."),
+        ("Deepwater Rig Rate", "Drilling", "Medium", "**Role:** Wells Lead.\n**Situation:** Oil down. Rates down 30%.\n**Goal:** -20% rate. 1yr extension.", "**Role:** Rig Contractor.\n**Motivation:** Terrified of stacking rig."),
+        ("FPSO Termination Threat", "Production", "Expert", "**Role:** Asset Mgr.\n**Situation:** 85% uptime.\n**Goal:** Remedial plan or Default Notice.", "**Role:** FPSO Operator.\n**Motivation:** Parts stuck in customs."),
+        ("SaaS Renewal Hike", "IT", "Medium", "**Role:** IT Buyer.\n**Situation:** +15% hike.\n**Goal:** Cap at 3%. No auto-renewal.", "**Role:** Sales VP.\n**Motivation:** Needs quarterly target."),
+        ("Software License Audit", "IT", "Hard", "**Role:** CIO.\n**Situation:** $2M penalty claim.\n**Goal:** Settle <$200k.", "**Role:** Auditor.\n**Motivation:** Bonus tied to penalty size."),
+        ("Data Breach Compensation", "IT", "Expert", "**Role:** Legal.\n**Situation:** Data leak.\n**Goal:** 1yr free service + monitoring.", "**Role:** Cloud Provider.\n**Motivation:** Limit liability to 1 month fees."),
+        ("Logistics Demurrage", "Logistics", "Easy", "**Role:** Logistics Supt.\n**Situation:** 3 day delay. $50k claim.\n**Goal:** Pay $0.", "**Role:** Shipowner.\n**Motivation:** Needs cash for fuel."),
+        ("Helicopter Fuel Surcharge", "Logistics", "Medium", "**Role:** Category Lead.\n**Situation:** +10% fuel surcharge.\n**Goal:** Floating mechanism only.", "**Role:** Heli Operator.\n**Motivation:** Zero margin without hike."),
+        ("Warehousing Exclusivity", "Logistics", "Easy", "**Role:** Supply Mgr.\n**Situation:** Owner wants 5yr exclusive.\n**Goal:** 2yr non-exclusive.", "**Role:** Owner.\n**Motivation:** Needs lease for bank loan."),
+        ("Consultancy Rate Hike", "Corporate", "Medium", "**Role:** HR Director.\n**Situation:** +10% rate ask.\n**Goal:** Flat rates.", "**Role:** Partner.\n**Motivation:** Salary inflation high."),
+        ("Office Lease Renewal", "Real Estate", "Hard", "**Role:** Facilities Mgr.\n**Situation:** +20% rent ask.\n**Goal:** Flat or move.", "**Role:** Landlord.\n**Motivation:** Bluffing about other tenant."),
+        ("Travel Agency Rebate", "Corporate", "Easy", "**Role:** Procurement Lead.\n**Situation:** New Agency.\n**Goal:** 3% rebate.", "**Role:** Agency Rep.\n**Motivation:** Thin margins. 1% max."),
+        ("Pollution Liability Cap", "Legal", "Hard", "**Role:** Counsel.\n**Situation:** Wants $5M cap.\n**Goal:** Unlimited or $50M.", "**Role:** Owner.\n**Motivation:** Insurance limit is $10M."),
+        ("JV Partner Approval", "Governance", "Hard", "**Role:** Asset Mgr.\n**Situation:** Sole-source $2M.\n**Goal:** Partner approval.", "**Role:** Partner.\n**Motivation:** Suspects gold-plating."),
+        ("Force Majeure Claim", "Legal", "Expert", "**Role:** Contract Mgr.\n**Situation:** Supplier declares FM (Storm).\n**Goal:** Reject FM.", "**Role:** Supplier.\n**Motivation:** Factory damaged."),
+        ("IP Ownership Dispute", "R&D", "Hard", "**Role:** R&D Lead.\n**Situation:** Joint dev.\n**Goal:** We own IP.", "**Role:** Startup CEO.\n**Motivation:** IP is only asset."),
+        ("Local Content Quota", "ESG", "Medium", "**Role:** Content Mgr.\n**Situation:** 40% mandate.\n**Goal:** Enforce target.", "**Role:** Supplier.\n**Motivation:** Locals untrained."),
+        ("HSE Incident Reporting", "HSE", "Medium", "**Role:** HSE Mgr.\n**Situation:** Hidden Near Miss.\n**Goal:** Reset bonus.", "**Role:** Supervisor.\n**Motivation:** Protecting crew bonus."),
+        ("Green Energy Premium", "ESG", "Medium", "**Role:** Power Buyer.\n**Situation:** Buying renewable.\n**Goal:** <5% premium.", "**Role:** Generator.\n**Motivation:** High demand.")
     ]
     c.executemany('INSERT INTO scenarios (title, category, difficulty, user_brief, system_persona) VALUES (?,?,?,?,?)', data)
     conn.commit()
@@ -181,15 +171,15 @@ def create_pdf(title, brief, score_data, feedback, transcript):
 
 # UI SIDEBAR
 with st.sidebar:
-    st.markdown(\"\"\"
+    st.markdown("""
         <style>
         .big-font { font-size: 26px !important; font-weight: 800; color: #154360; margin-bottom: 5px; }
         .version-font { font-size: 12px; color: #888; margin-bottom: 15px; }
         .stButton button { width: 100%; border-radius: 5px; }
         </style>
         <div class="big-font">Procurement Simulator Pro</div>
-        <div class="version-font">Version 0.1 | Enterprise Edition</div>
-    \"\"\", unsafe_allow_html=True)
+        <div class="version-font">Version 1.0 | Enterprise Edition</div>
+    """, unsafe_allow_html=True)
     st.markdown("---")
     
     scenarios = get_scenarios()
@@ -205,9 +195,9 @@ with st.sidebar:
         elif not client: st.error("AI Offline.")
         else:
             with st.spinner("Analyzing..."):
-                t = "\\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+                t = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
                 try:
-                    r = client.models.generate_content(model='gemini-2.0-flash', contents=f"Context: {brief}\\nTranscript: {t}\\nTask: Give ONE short tactical move.")
+                    r = client.models.generate_content(model='gemini-2.0-flash', contents=f"Context: {brief}\nTranscript: {t}\nTask: Give ONE short tactical move.")
                     st.info(f"**Coach:** {r.text}")
                 except: st.error("Coach unavailable.")
     if st.button("🔄 Reset Session", type="primary"): st.session_state.messages = []; st.rerun()
@@ -224,7 +214,7 @@ for msg in st.session_state.messages:
 if user_input := st.chat_input("Enter your position..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user", avatar="👤"): st.markdown(user_input)
-    sys_prompt = f"Sim: {selected_label}\\nRole: {persona}\\nAct as professional counterparty. Concise. Tough."
+    sys_prompt = f"Sim: {selected_label}\nRole: {persona}\nAct as professional counterparty. Concise. Tough."
     gemini_hist = [types.Content(role="user" if m["role"]=="user" else "model", parts=[types.Part(text=m["content"])]) for m in st.session_state.messages]
     with st.chat_message("assistant", avatar="👔"):
         with st.spinner("Counterparty responding..."):
@@ -233,7 +223,6 @@ if user_input := st.chat_input("Enter your position..."):
                 st.markdown(resp.text); st.session_state.messages.append({"role": "assistant", "content": resp.text})
             except: st.error("Connection Error.")
 
-# ANALYTICS
 class Scorecard(BaseModel): total_score: int; commercial: int; strategy: int; feedback: str
 st.markdown("---")
 with st.expander("📊 End Session & Generate Report", expanded=False):
@@ -241,9 +230,9 @@ with st.expander("📊 End Session & Generate Report", expanded=False):
         if len(st.session_state.messages) < 2: st.warning("Insufficient data.")
         else:
             with st.spinner("Generating Assessment..."):
-                t = "\\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+                t = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
                 try:
-                    r = client.models.generate_content(model='gemini-2.0-flash', contents=f"Context: {brief}\\nTranscript: {t}\\nTask: Grade (0-100). JSON.", config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Scorecard, temperature=0.1)).parsed
+                    r = client.models.generate_content(model='gemini-2.0-flash', contents=f"Context: {brief}\nTranscript: {t}\nTask: Grade (0-100). JSON.", config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Scorecard, temperature=0.1)).parsed
                     safe_total = min(max(r.total_score, 0), 100)
                     c1, c2, c3 = st.columns([1,1,2])
                     with c1: st.metric("Total Score", f"{safe_total}/100"); st.progress(safe_total/100)
@@ -252,11 +241,12 @@ with st.expander("📊 End Session & Generate Report", expanded=False):
                     pdf_data = create_pdf(selected_label, brief, {"total": safe_total, "comm": r.commercial, "strat": r.strategy}, r.feedback, st.session_state.messages)
                     st.download_button("📄 Download Professional AAR (PDF)", pdf_data, "AAR_Report.pdf", "application/pdf")
                 except Exception as e: st.error(f"Error: {e}")
-"""
+'''
+
 with open("app.py", "w") as f:
     f.write(app_code)
 
-# 4. LAUNCHER
+# --- 5. LAUNCHER ---
 print("🚀 Launching Procurement Simulator Pro...")
 print("----------------------------------------------------------------")
 subprocess.Popen(["streamlit", "run", "app.py", "--server.port", "8501", "--server.address", "0.0.0.0", "--server.headless", "true"])
@@ -274,7 +264,7 @@ for i in range(10):
             url_match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", content)
             if url_match:
                 print(f"\n✅ YOUR APP URL: {url_match.group(0)}\n")
-                print("🔑 ADMIN KEY: Use 'admin-bypass' to unlock, or enter your API Key in the UI if needed.")
+                print("🔑 ADMIN KEY: Use 'admin-bypass' to unlock.")
                 found_url = True
                 break
     except: pass
