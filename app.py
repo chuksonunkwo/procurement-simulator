@@ -5,22 +5,20 @@ import os
 import time
 import subprocess
 
-# --- 1. INSTALL DEPENDENCIES ---
+# --- 1. INSTALL DEPENDENCIES (Optimized) ---
 print("🛠️ Installing Enterprise Libraries...")
 subprocess.run(["pip", "install", "-q", "-U", "streamlit", "google-genai", "sqlalchemy", "fpdf", "requests", "pydantic"], check=True)
 
-# --- 2. DOWNLOAD CLOUDFLARE (Fixes Network Errors) ---
+# --- 2. DOWNLOAD NETWORK TUNNEL ---
 if not os.path.exists("cloudflared-linux-amd64"):
-    print("☁️ Downloading Network Tunnel...")
     subprocess.run(["wget", "-q", "-O", "cloudflared-linux-amd64", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"], check=True)
     subprocess.run(["chmod", "+x", "cloudflared-linux-amd64"], check=True)
 
-# --- 3. GENERATE REQUIREMENTS.TXT (Crucial for Render) ---
-print("📄 Generating requirements.txt...")
+# --- 3. CREATE REQUIREMENTS.TXT (Required for Render) ---
 with open("requirements.txt", "w") as f:
     f.write("streamlit\ngoogle-genai\nsqlalchemy\nfpdf\nrequests\npydantic\n")
 
-# --- 4. GENERATE APP.PY (Clean Login Screen) ---
+# --- 4. CREATE APP.PY (Fixed License Check) ---
 print("📝 Writing Application Code...")
 
 app_code = r'''
@@ -32,22 +30,21 @@ import requests
 from fpdf import FPDF
 from pydantic import BaseModel
 
-# --- 1. CONFIGURATION ---
-st.set_page_config(
-    page_title="Procurement Simulator Pro",
-    layout="wide",
-    page_icon="💼",
-    initial_sidebar_state="expanded"
-)
+# --- CONFIGURATION ---
+st.set_page_config(page_title="Procurement Simulator Pro", layout="wide", page_icon="💼", initial_sidebar_state="expanded")
 
-# --- 2. MONETIZATION GATEKEEPER ---
+# --- LICENSE GATEKEEPER ---
+# ⚠️ TOMORROW: Change this to your actual Gumroad product permalink
 GUMROAD_PERMALINK = "procurement-sim-demo" 
 
 def check_gumroad_license(license_key):
-    if license_key == "admin-bypass": return True 
+    # UNIVERSAL BYPASS - USE THIS TO LOGIN NOW
+    if license_key.strip() == "admin-bypass": 
+        return True 
+        
     try:
         r = requests.post("https://api.gumroad.com/v2/licenses/verify", 
-                         data={"product_permalink": GUMROAD_PERMALINK, "license_key": license_key})
+                         data={"product_permalink": GUMROAD_PERMALINK, "license_key": license_key.strip()})
         data = r.json()
         return data.get("success", False) and not data.get("purchase", {}).get("refunded", False)
     except: return False
@@ -68,9 +65,7 @@ if not st.session_state.authenticated:
     
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        # CLEAN LOGIN: Only License Key is shown
-        license_input = st.text_input("License Key", placeholder="Enter your Gumroad Key")
-        
+        license_input = st.text_input("License Key", placeholder="Enter 'admin-bypass' to enter")
         if st.button("Unlock Access", type="primary", use_container_width=True):
             if check_gumroad_license(license_input):
                 st.session_state.authenticated = True
@@ -78,10 +73,10 @@ if not st.session_state.authenticated:
                 time.sleep(1)
                 st.rerun()
             else:
-                st.error("Invalid License Key.")
+                st.error(f"Invalid Key. Did you mean 'admin-bypass'?")
     st.stop()
 
-# --- 3. CORE APP ---
+# --- APP LOGIC ---
 if "messages" not in st.session_state: st.session_state.messages = []
 
 try:
@@ -100,40 +95,42 @@ def get_client():
 
 client = get_client()
 
-# DATA LAYER
+# DATABASE (Fast Init)
 DB_FILE = 'procurement_sim_v1.db'
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("DROP TABLE IF EXISTS scenarios")
-    c.execute("CREATE TABLE scenarios (id INTEGER PRIMARY KEY, title TEXT, category TEXT, difficulty TEXT, user_brief TEXT, system_persona TEXT)")
+    c.execute("CREATE TABLE IF NOT EXISTS scenarios (id INTEGER PRIMARY KEY, title TEXT, category TEXT, difficulty TEXT, user_brief TEXT, system_persona TEXT)")
     
-    data = [
-        ("EPC Steel Variation Claim", "Construction", "Hard", "**Role:** Project Director.\n**Situation:** Contractor claims $5M for steel price hikes.\n**Goal:** Reject hike.", "**Role:** Contractor PM.\n**Motivation:** Needs cash for liquidity."),
-        ("Camp Construction Delay", "Construction", "Medium", "**Role:** Site Mgr.\n**Situation:** Delivery delayed 2 months.\n**Goal:** Demand acceleration.", "**Role:** Construction Lead.\n**Motivation:** Weather delay (FM). Won't pay acceleration."),
-        ("Deepwater Rig Rate", "Drilling", "Medium", "**Role:** Wells Lead.\n**Situation:** Oil down. Rates down 30%.\n**Goal:** -20% rate. 1yr extension.", "**Role:** Rig Contractor.\n**Motivation:** Terrified of stacking rig."),
-        ("FPSO Termination Threat", "Production", "Expert", "**Role:** Asset Mgr.\n**Situation:** 85% uptime.\n**Goal:** Remedial plan or Default Notice.", "**Role:** FPSO Operator.\n**Motivation:** Parts stuck in customs."),
-        ("SaaS Renewal Hike", "IT", "Medium", "**Role:** IT Buyer.\n**Situation:** +15% hike.\n**Goal:** Cap at 3%. No auto-renewal.", "**Role:** Sales VP.\n**Motivation:** Needs quarterly target."),
-        ("Software License Audit", "IT", "Hard", "**Role:** CIO.\n**Situation:** $2M penalty claim.\n**Goal:** Settle <$200k.", "**Role:** Auditor.\n**Motivation:** Bonus tied to penalty size."),
-        ("Data Breach Compensation", "IT", "Expert", "**Role:** Legal.\n**Situation:** Data leak.\n**Goal:** 1yr free service + monitoring.", "**Role:** Cloud Provider.\n**Motivation:** Limit liability to 1 month fees."),
-        ("Logistics Demurrage", "Logistics", "Easy", "**Role:** Logistics Supt.\n**Situation:** 3 day delay. $50k claim.\n**Goal:** Pay $0.", "**Role:** Shipowner.\n**Motivation:** Needs cash for fuel."),
-        ("Helicopter Fuel Surcharge", "Logistics", "Medium", "**Role:** Category Lead.\n**Situation:** +10% fuel surcharge.\n**Goal:** Floating mechanism only.", "**Role:** Heli Operator.\n**Motivation:** Zero margin without hike."),
-        ("Warehousing Exclusivity", "Logistics", "Easy", "**Role:** Supply Mgr.\n**Situation:** Owner wants 5yr exclusive.\n**Goal:** 2yr non-exclusive.", "**Role:** Owner.\n**Motivation:** Needs lease for bank loan."),
-        ("Consultancy Rate Hike", "Corporate", "Medium", "**Role:** HR Director.\n**Situation:** +10% rate ask.\n**Goal:** Flat rates.", "**Role:** Partner.\n**Motivation:** Salary inflation high."),
-        ("Office Lease Renewal", "Real Estate", "Hard", "**Role:** Facilities Mgr.\n**Situation:** +20% rent ask.\n**Goal:** Flat or move.", "**Role:** Landlord.\n**Motivation:** Bluffing about other tenant."),
-        ("Travel Agency Rebate", "Corporate", "Easy", "**Role:** Procurement Lead.\n**Situation:** New Agency.\n**Goal:** 3% rebate.", "**Role:** Agency Rep.\n**Motivation:** Thin margins. 1% max."),
-        ("Pollution Liability Cap", "Legal", "Hard", "**Role:** Counsel.\n**Situation:** Wants $5M cap.\n**Goal:** Unlimited or $50M.", "**Role:** Owner.\n**Motivation:** Insurance limit is $10M."),
-        ("JV Partner Approval", "Governance", "Hard", "**Role:** Asset Mgr.\n**Situation:** Sole-source $2M.\n**Goal:** Partner approval.", "**Role:** Partner.\n**Motivation:** Suspects gold-plating."),
-        ("Force Majeure Claim", "Legal", "Expert", "**Role:** Contract Mgr.\n**Situation:** Supplier declares FM (Storm).\n**Goal:** Reject FM.", "**Role:** Supplier.\n**Motivation:** Factory damaged."),
-        ("IP Ownership Dispute", "R&D", "Hard", "**Role:** R&D Lead.\n**Situation:** Joint dev.\n**Goal:** We own IP.", "**Role:** Startup CEO.\n**Motivation:** IP is only asset."),
-        ("Local Content Quota", "ESG", "Medium", "**Role:** Content Mgr.\n**Situation:** 40% mandate.\n**Goal:** Enforce target.", "**Role:** Supplier.\n**Motivation:** Locals untrained."),
-        ("HSE Incident Reporting", "HSE", "Medium", "**Role:** HSE Mgr.\n**Situation:** Hidden Near Miss.\n**Goal:** Reset bonus.", "**Role:** Supervisor.\n**Motivation:** Protecting crew bonus."),
-        ("Green Energy Premium", "ESG", "Medium", "**Role:** Power Buyer.\n**Situation:** Buying renewable.\n**Goal:** <5% premium.", "**Role:** Generator.\n**Motivation:** High demand.")
-    ]
-    c.executemany('INSERT INTO scenarios (title, category, difficulty, user_brief, system_persona) VALUES (?,?,?,?,?)', data)
-    conn.commit()
+    # Check if empty before inserting (Speeds up start)
+    c.execute("SELECT count(*) FROM scenarios")
+    if c.fetchone()[0] == 0:
+        data = [
+            ("EPC Steel Variation Claim", "Construction", "Hard", "**Role:** Project Director.\n**Situation:** Contractor claims $5M for steel price hikes.\n**Goal:** Reject hike.", "**Role:** Contractor PM.\n**Motivation:** Needs cash for liquidity."),
+            ("Camp Construction Delay", "Construction", "Medium", "**Role:** Site Mgr.\n**Situation:** Delivery delayed 2 months.\n**Goal:** Demand acceleration.", "**Role:** Construction Lead.\n**Motivation:** Weather delay (FM). Won't pay acceleration."),
+            ("Deepwater Rig Rate", "Drilling", "Medium", "**Role:** Wells Lead.\n**Situation:** Oil down. Rates down 30%.\n**Goal:** -20% rate. 1yr extension.", "**Role:** Rig Contractor.\n**Motivation:** Terrified of stacking rig."),
+            ("FPSO Termination Threat", "Production", "Expert", "**Role:** Asset Mgr.\n**Situation:** 85% uptime.\n**Goal:** Remedial plan or Default Notice.", "**Role:** FPSO Operator.\n**Motivation:** Parts stuck in customs."),
+            ("SaaS Renewal Hike", "IT", "Medium", "**Role:** IT Buyer.\n**Situation:** +15% hike.\n**Goal:** Cap at 3%. No auto-renewal.", "**Role:** Sales VP.\n**Motivation:** Needs quarterly target."),
+            ("Software License Audit", "IT", "Hard", "**Role:** CIO.\n**Situation:** $2M penalty claim.\n**Goal:** Settle <$200k.", "**Role:** Auditor.\n**Motivation:** Bonus tied to penalty size."),
+            ("Data Breach Compensation", "IT", "Expert", "**Role:** Legal.\n**Situation:** Data leak.\n**Goal:** 1yr free service + monitoring.", "**Role:** Cloud Provider.\n**Motivation:** Limit liability to 1 month fees."),
+            ("Logistics Demurrage", "Logistics", "Easy", "**Role:** Logistics Supt.\n**Situation:** 3 day delay. $50k claim.\n**Goal:** Pay $0.", "**Role:** Shipowner.\n**Motivation:** Needs cash for fuel."),
+            ("Helicopter Fuel Surcharge", "Logistics", "Medium", "**Role:** Category Lead.\n**Situation:** +10% fuel surcharge.\n**Goal:** Floating mechanism only.", "**Role:** Heli Operator.\n**Motivation:** Zero margin without hike."),
+            ("Warehousing Exclusivity", "Logistics", "Easy", "**Role:** Supply Mgr.\n**Situation:** Owner wants 5yr exclusive.\n**Goal:** 2yr non-exclusive.", "**Role:** Owner.\n**Motivation:** Needs lease for bank loan."),
+            ("Consultancy Rate Hike", "Corporate", "Medium", "**Role:** HR Director.\n**Situation:** +10% rate ask.\n**Goal:** Flat rates.", "**Role:** Partner.\n**Motivation:** Salary inflation high."),
+            ("Office Lease Renewal", "Real Estate", "Hard", "**Role:** Facilities Mgr.\n**Situation:** +20% rent ask.\n**Goal:** Flat or move.", "**Role:** Landlord.\n**Motivation:** Bluffing about other tenant."),
+            ("Travel Agency Rebate", "Corporate", "Easy", "**Role:** Procurement Lead.\n**Situation:** New Agency.\n**Goal:** 3% rebate.", "**Role:** Agency Rep.\n**Motivation:** Thin margins. 1% max."),
+            ("Pollution Liability Cap", "Legal", "Hard", "**Role:** Counsel.\n**Situation:** Wants $5M cap.\n**Goal:** Unlimited or $50M.", "**Role:** Owner.\n**Motivation:** Insurance limit is $10M."),
+            ("JV Partner Approval", "Governance", "Hard", "**Role:** Asset Mgr.\n**Situation:** Sole-source $2M.\n**Goal:** Partner approval.", "**Role:** Partner.\n**Motivation:** Suspects gold-plating."),
+            ("Force Majeure Claim", "Legal", "Expert", "**Role:** Contract Mgr.\n**Situation:** Supplier declares FM (Storm).\n**Goal:** Reject FM.", "**Role:** Supplier.\n**Motivation:** Factory damaged."),
+            ("IP Ownership Dispute", "R&D", "Hard", "**Role:** R&D Lead.\n**Situation:** Joint dev.\n**Goal:** We own IP.", "**Role:** Startup CEO.\n**Motivation:** IP is only asset."),
+            ("Local Content Quota", "ESG", "Medium", "**Role:** Content Mgr.\n**Situation:** 40% mandate.\n**Goal:** Enforce target.", "**Role:** Supplier.\n**Motivation:** Locals untrained."),
+            ("HSE Incident Reporting", "HSE", "Medium", "**Role:** HSE Mgr.\n**Situation:** Hidden Near Miss.\n**Goal:** Reset bonus.", "**Role:** Supervisor.\n**Motivation:** Protecting crew bonus."),
+            ("Green Energy Premium", "ESG", "Medium", "**Role:** Power Buyer.\n**Situation:** Buying renewable.\n**Goal:** <5% premium.", "**Role:** Generator.\n**Motivation:** High demand.")
+        ]
+        c.executemany('INSERT INTO scenarios (title, category, difficulty, user_brief, system_persona) VALUES (?,?,?,?,?)', data)
+        conn.commit()
 
-if 'db_initialized' not in st.session_state: init_db(); st.session_state['db_initialized'] = True
+init_db()
 
 def get_scenarios():
     conn = sqlite3.connect(DB_FILE)
@@ -201,7 +198,7 @@ with st.sidebar:
 
 # MAIN CHAT
 st.markdown(f"### {selected_label.split('|')[1].strip()}") 
-if not client: st.error("⚠️ AI Key Missing. Check Env Vars."); st.stop()
+if not client: st.error("⚠️ AI Key Missing. Please set GEMINI_API_KEY in Render Environment Variables."); st.stop()
 
 for msg in st.session_state.messages:
     avatar = "👤" if msg["role"] == "user" else "👔"
@@ -244,7 +241,6 @@ with open("app.py", "w") as f:
 
 # --- 5. LAUNCHER ---
 print("🚀 Launching Procurement Simulator Pro...")
-print("----------------------------------------------------------------")
 subprocess.Popen(["streamlit", "run", "app.py", "--server.port", "8501", "--server.address", "0.0.0.0", "--server.headless", "true"])
 time.sleep(3)
 with open("cloudflare.log", "w") as f:
@@ -260,9 +256,8 @@ for i in range(10):
             url_match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", content)
             if url_match:
                 print(f"\n✅ YOUR APP URL: {url_match.group(0)}\n")
-                print("🔑 Use 'admin-bypass' to unlock (or a real Gumroad key).")
+                print("🔑 Use password 'admin-bypass' to log in.")
                 found_url = True
                 break
     except: pass
     time.sleep(2)
-if not found_url: print("❌ Error finding URL. Please re-run this cell.")
