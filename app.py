@@ -1,5 +1,5 @@
 # ======================================================
-# 🔒 PROCUREMENT SIMULATOR PRO: FINAL PRODUCTION BUILD
+# 🔒 PROCUREMENT SIMULATOR PRO: FINAL FIXED BUILD
 # ======================================================
 import os
 import time
@@ -35,27 +35,19 @@ from pydantic import BaseModel
 st.set_page_config(page_title="Procurement Simulator Pro", layout="wide", page_icon="💼", initial_sidebar_state="expanded")
 
 # --- 🔒 LICENSE GATEKEEPER ---
-# ✅ UPDATED: Using Product ID specifically
 GUMROAD_PRODUCT_ID = "MFZpNGyCplKf9iTHq2f2xg==" 
 
 def check_gumroad_license(license_key):
     try:
-        # We try verifying by ID first. 
-        # Note: If this fails, ensure your Permlink (e.g. 'procurement-sim') is used instead.
-        # But since you provided an ID, we send it as 'product_id'.
         r = requests.post("https://api.gumroad.com/v2/licenses/verify", 
                          data={
                              "product_id": GUMROAD_PRODUCT_ID, 
                              "license_key": license_key.strip()
                          })
         data = r.json()
-        
-        # Check success and ensure not refunded
         is_valid = data.get("success", False) and not data.get("purchase", {}).get("refunded", False)
         return is_valid
     except Exception as e:
-        # Fallback logging (invisible to user)
-        print(f"Verification Error: {e}")
         return False
 
 if "authenticated" not in st.session_state:
@@ -89,7 +81,6 @@ if not st.session_state.authenticated:
     
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        # REMOVED PLACEHOLDER TEXT as requested
         license_input = st.text_input("License Key", placeholder="", type="password")
         
         if st.button("Validate & Login", type="primary", use_container_width=True):
@@ -245,14 +236,35 @@ with st.expander("📊 End Session & Generate Report", expanded=False):
         else:
             with st.spinner("Generating Assessment..."):
                 t = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+                # ✅ UPDATED PROMPT: Explicitly tells AI the range rules again to prevent 95/40
+                score_prompt = f"""
+                Context: {brief}
+                Transcript: {t}
+                Task: Grade performance. Returns JSON.
+                Rules: 
+                - total_score (0-100)
+                - commercial (0-40) [MAX IS 40]
+                - strategy (0-40) [MAX IS 40]
+                """
                 try:
-                    r = client.models.generate_content(model='gemini-2.0-flash', contents=f"Context: {brief}\nTranscript: {t}\nTask: Grade (0-100). JSON.", config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Scorecard, temperature=0.1)).parsed
+                    r = client.models.generate_content(
+                        model='gemini-2.0-flash', 
+                        contents=score_prompt, 
+                        config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Scorecard, temperature=0.1)
+                    ).parsed
+                    
+                    # ✅ SAFETY CLAMP: Forces scores down to 40 if AI hallucinates higher
                     safe_total = min(max(r.total_score, 0), 100)
+                    safe_comm = min(max(r.commercial, 0), 40)
+                    safe_strat = min(max(r.strategy, 0), 40)
+                    
                     c1, c2, c3 = st.columns([1,1,2])
                     with c1: st.metric("Total Score", f"{safe_total}/100"); st.progress(safe_total/100)
-                    with c2: st.metric("Commercial", f"{r.commercial}/40"); st.metric("Strategy", f"{r.strategy}/40")
+                    # Uses the SAFE clamped values now
+                    with c2: st.metric("Commercial", f"{safe_comm}/40"); st.metric("Strategy", f"{safe_strat}/40")
                     with c3: st.info(f"**Feedback:** {r.feedback}")
-                    pdf_data = create_pdf(selected_label, brief, {"total": safe_total, "comm": r.commercial, "strat": r.strategy}, r.feedback, st.session_state.messages)
+                    
+                    pdf_data = create_pdf(selected_label, brief, {"total": safe_total, "comm": safe_comm, "strat": safe_strat}, r.feedback, st.session_state.messages)
                     st.download_button("📄 Download Professional AAR (PDF)", pdf_data, "AAR_Report.pdf", "application/pdf")
                 except Exception as e: st.error(f"Error: {e}")
 '''
