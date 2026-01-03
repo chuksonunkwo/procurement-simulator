@@ -1,24 +1,26 @@
 # ======================================================
-# 🏆 PROCUREMENT SIMULATOR PRO: FINAL PRODUCTION BUILD
+# 🔒 PROCUREMENT SIMULATOR PRO: COMMERCIAL RELEASE
+#    Product ID: MFZpNGyCplKf9iTHq2f2xg==
 # ======================================================
 import os
 import time
 import subprocess
 
-# --- 1. INSTALL DEPENDENCIES (Optimized) ---
+# --- 1. INSTALL DEPENDENCIES ---
 print("🛠️ Installing Enterprise Libraries...")
 subprocess.run(["pip", "install", "-q", "-U", "streamlit", "google-genai", "sqlalchemy", "fpdf", "requests", "pydantic"], check=True)
 
 # --- 2. DOWNLOAD NETWORK TUNNEL ---
 if not os.path.exists("cloudflared-linux-amd64"):
+    print("☁️ Downloading Network Tunnel...")
     subprocess.run(["wget", "-q", "-O", "cloudflared-linux-amd64", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"], check=True)
     subprocess.run(["chmod", "+x", "cloudflared-linux-amd64"], check=True)
 
-# --- 3. CREATE REQUIREMENTS.TXT (Required for Render) ---
+# --- 3. REQUIREMENTS (For Cloud Deployment) ---
 with open("requirements.txt", "w") as f:
     f.write("streamlit\ngoogle-genai\nsqlalchemy\nfpdf\nrequests\npydantic\n")
 
-# --- 4. CREATE APP.PY (Fixed License Check) ---
+# --- 4. APP CODE ---
 print("📝 Writing Application Code...")
 
 app_code = r'''
@@ -33,56 +35,79 @@ from pydantic import BaseModel
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Procurement Simulator Pro", layout="wide", page_icon="💼", initial_sidebar_state="expanded")
 
-# --- LICENSE GATEKEEPER ---
-# ⚠️ TOMORROW: Change this to your actual Gumroad product permalink
-GUMROAD_PERMALINK = "procurement-sim-demo" 
+# --- 🔒 LICENSE GATEKEEPER ---
+# ✅ UPDATED: Your specific Gumroad Product ID
+GUMROAD_PERMALINK = "MFZpNGyCplKf9iTHq2f2xg==" 
 
 def check_gumroad_license(license_key):
-    # UNIVERSAL BYPASS - USE THIS TO LOGIN NOW
-    if license_key.strip() == "admin-bypass": 
-        return True 
-        
     try:
+        # Calls Gumroad API to verify the key belongs to your product
         r = requests.post("https://api.gumroad.com/v2/licenses/verify", 
                          data={"product_permalink": GUMROAD_PERMALINK, "license_key": license_key.strip()})
         data = r.json()
-        return data.get("success", False) and not data.get("purchase", {}).get("refunded", False)
-    except: return False
+        
+        # 1. Check if success is True
+        # 2. Check if purchase is NOT refunded/cancelled
+        is_valid = data.get("success", False) and not data.get("purchase", {}).get("refunded", False)
+        return is_valid
+    except: 
+        return False
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
+# --- LOCK SCREEN UI ---
 if not st.session_state.authenticated:
     st.markdown("""
         <style>
-        .lock-box { text-align: center; margin-top: 50px; padding: 40px; border: 1px solid #ddd; border-radius: 10px; max-width: 500px; margin-left: auto; margin-right: auto; }
+        .lock-box { 
+            text-align: center; 
+            margin-top: 80px; 
+            padding: 50px; 
+            border: 1px solid #e0e0e0; 
+            border-radius: 12px; 
+            background-color: #ffffff;
+            max-width: 550px; 
+            margin-left: auto; 
+            margin-right: auto; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 { color: #154360; font-family: 'Helvetica', sans-serif; }
         </style>
         <div class="lock-box">
             <h1>🔒 Procurement Simulator Pro</h1>
-            <p>Enterprise Negotiation Training Environment</p>
+            <p style="color: #666;">Enterprise Negotiation Training Environment</p>
+            <hr style="margin: 20px 0;">
+            <p style="font-size: 14px;">Please enter your license key to proceed.</p>
         </div>
     """, unsafe_allow_html=True)
     
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        license_input = st.text_input("License Key", placeholder="Enter 'admin-bypass' to enter")
-        if st.button("Unlock Access", type="primary", use_container_width=True):
-            if check_gumroad_license(license_input):
-                st.session_state.authenticated = True
-                st.success("Access Granted.")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error(f"Invalid Key. Did you mean 'admin-bypass'?")
+        license_input = st.text_input("License Key", placeholder="KW...-....", type="password")
+        
+        if st.button("Validate & Login", type="primary", use_container_width=True):
+            with st.spinner("Verifying License with Gumroad..."):
+                if check_gumroad_license(license_input):
+                    st.session_state.authenticated = True
+                    st.success("✅ License Verified.")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid License Key. Access Denied.")
     st.stop()
 
-# --- APP LOGIC ---
+# ==========================================
+#  💼 MAIN APPLICATION (Protected Area)
+# ==========================================
+
 if "messages" not in st.session_state: st.session_state.messages = []
 
+# AI SETUP
 try:
     from google import genai
     from google.genai import types
-except ImportError: st.error("Library Error: google-genai missing"); st.stop()
+except ImportError: st.error("System Error: AI Library missing."); st.stop()
 
 @st.cache_resource
 def get_client():
@@ -95,14 +120,14 @@ def get_client():
 
 client = get_client()
 
-# DATABASE (Fast Init)
-DB_FILE = 'procurement_sim_v1.db'
+# DATABASE SETUP
+DB_FILE = 'procurement_sim_final.db'
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS scenarios (id INTEGER PRIMARY KEY, title TEXT, category TEXT, difficulty TEXT, user_brief TEXT, system_persona TEXT)")
     
-    # Check if empty before inserting (Speeds up start)
+    # Fast load: Only insert if empty
     c.execute("SELECT count(*) FROM scenarios")
     if c.fetchone()[0] == 0:
         data = [
@@ -198,7 +223,7 @@ with st.sidebar:
 
 # MAIN CHAT
 st.markdown(f"### {selected_label.split('|')[1].strip()}") 
-if not client: st.error("⚠️ AI Key Missing. Please set GEMINI_API_KEY in Render Environment Variables."); st.stop()
+if not client: st.error("⚠️ AI Key Missing. Please set GEMINI_API_KEY env var."); st.stop()
 
 for msg in st.session_state.messages:
     avatar = "👤" if msg["role"] == "user" else "👔"
@@ -256,8 +281,9 @@ for i in range(10):
             url_match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", content)
             if url_match:
                 print(f"\n✅ YOUR APP URL: {url_match.group(0)}\n")
-                print("🔑 Use password 'admin-bypass' to log in.")
+                print("🔒 LOCKED: Requires valid license for Product ID 'MFZpNGyCplKf9iTHq2f2xg=='")
                 found_url = True
                 break
     except: pass
     time.sleep(2)
+if not found_url: print("❌ Error finding URL. Please re-run this cell.")
