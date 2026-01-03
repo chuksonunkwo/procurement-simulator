@@ -1,12 +1,12 @@
 # ==========================================
-# 🚀 PROCUREMENT SIMULATOR PRO: MASTER CELL
+# 🚀 PROCUREMENT SIMULATOR PRO: FINAL MASTER CELL
 # ==========================================
 
 import os
 import time
 import subprocess
 
-# 1. INSTALL DEPENDENCIES
+# 1. INSTALL DEPENDENCIES (Force Upgrade to fix ImportErrors)
 print("🛠️ Installing Enterprise Libraries...")
 subprocess.run(["pip", "install", "-q", "-U", "streamlit", "google-genai", "sqlalchemy", "fpdf", "requests", "pydantic"], check=True)
 
@@ -18,6 +18,7 @@ if not os.path.exists("cloudflared-linux-amd64"):
 
 # 3. WRITE THE APPLICATION FILE (app.py)
 print("📝 Writing Application Code (v0.1)...")
+# Note: We use double backslashes (\\n) for text to prevent line-break errors in the generated file.
 app_code = """
 import streamlit as st
 import sqlite3
@@ -113,34 +114,35 @@ def init_db():
     c.execute("DROP TABLE IF EXISTS scenarios")
     c.execute("CREATE TABLE scenarios (id INTEGER PRIMARY KEY, title TEXT, category TEXT, difficulty TEXT, user_brief TEXT, system_persona TEXT)")
     
+    # FIXED: Using double backslashes \\n to prevent SyntaxErrors
     data = [
         # CONSTRUCTION
-        ("EPC Steel Variation Claim", "Construction", "Hard", "**Role:** Project Director.\n**Situation:** Contractor claims $5M for steel price hikes.\n**Goal:** Reject hike.", "**Role:** Contractor PM.\n**Motivation:** Needs cash for liquidity."),
-        ("Camp Construction Delay", "Construction", "Medium", "**Role:** Site Mgr.\n**Situation:** Delivery delayed 2 months.\n**Goal:** Demand acceleration.", "**Role:** Construction Lead.\n**Motivation:** Weather delay (FM). Won't pay acceleration."),
+        ("EPC Steel Variation Claim", "Construction", "Hard", "**Role:** Project Director.\\n**Situation:** Contractor claims $5M for steel price hikes.\\n**Goal:** Reject hike.", "**Role:** Contractor PM.\\n**Motivation:** Needs cash for liquidity."),
+        ("Camp Construction Delay", "Construction", "Medium", "**Role:** Site Mgr.\\n**Situation:** Delivery delayed 2 months.\\n**Goal:** Demand acceleration.", "**Role:** Construction Lead.\\n**Motivation:** Weather delay (FM). Won't pay acceleration."),
         # DRILLING
-        ("Deepwater Rig Rate", "Drilling", "Medium", "**Role:** Wells Lead.\n**Situation:** Oil down. Rates down 30%.\n**Goal:** -20% rate. 1yr extension.", "**Role:** Rig Contractor.\n**Motivation:** Terrified of stacking rig."),
-        ("FPSO Termination Threat", "Production", "Expert", "**Role:** Asset Mgr.\n**Situation:** 85% uptime.\n**Goal:** Remedial plan or Default Notice.", "**Role:** FPSO Operator.\n**Motivation:** Parts stuck in customs."),
+        ("Deepwater Rig Rate", "Drilling", "Medium", "**Role:** Wells Lead.\\n**Situation:** Oil down. Rates down 30%.\\n**Goal:** -20% rate. 1yr extension.", "**Role:** Rig Contractor.\\n**Motivation:** Terrified of stacking rig."),
+        ("FPSO Termination Threat", "Production", "Expert", "**Role:** Asset Mgr.\\n**Situation:** 85% uptime.\\n**Goal:** Remedial plan or Default Notice.", "**Role:** FPSO Operator.\\n**Motivation:** Parts stuck in customs."),
         # IT
-        ("SaaS Renewal Hike", "IT", "Medium", "**Role:** IT Buyer.\n**Situation:** +15% hike.\n**Goal:** Cap at 3%. No auto-renewal.", "**Role:** Sales VP.\n**Motivation:** Needs quarterly target. Can trade term for price."),
-        ("Software License Audit", "IT", "Hard", "**Role:** CIO.\n**Situation:** $2M penalty claim.\n**Goal:** Settle <$200k.", "**Role:** Auditor.\n**Motivation:** Bonus tied to penalty size."),
-        ("Data Breach Compensation", "IT", "Expert", "**Role:** Legal.\n**Situation:** Data leak.\n**Goal:** 1yr free service + monitoring.", "**Role:** Cloud Provider.\n**Motivation:** Limit liability to 1 month fees."),
+        ("SaaS Renewal Hike", "IT", "Medium", "**Role:** IT Buyer.\\n**Situation:** +15% hike.\\n**Goal:** Cap at 3%. No auto-renewal.", "**Role:** Sales VP.\\n**Motivation:** Needs quarterly target. Can trade term for price."),
+        ("Software License Audit", "IT", "Hard", "**Role:** CIO.\\n**Situation:** $2M penalty claim.\\n**Goal:** Settle <$200k.", "**Role:** Auditor.\\n**Motivation:** Bonus tied to penalty size."),
+        ("Data Breach Compensation", "IT", "Expert", "**Role:** Legal.\\n**Situation:** Data leak.\\n**Goal:** 1yr free service + monitoring.", "**Role:** Cloud Provider.\\n**Motivation:** Limit liability to 1 month fees."),
         # LOGISTICS
-        ("Logistics Demurrage", "Logistics", "Easy", "**Role:** Logistics Supt.\n**Situation:** 3 day delay. $50k claim.\n**Goal:** Pay $0.", "**Role:** Shipowner.\n**Motivation:** Needs cash for fuel."),
-        ("Helicopter Fuel Surcharge", "Logistics", "Medium", "**Role:** Category Lead.\n**Situation:** +10% fuel surcharge.\n**Goal:** Floating mechanism only.", "**Role:** Heli Operator.\n**Motivation:** Zero margin without hike."),
-        ("Warehousing Exclusivity", "Logistics", "Easy", "**Role:** Supply Mgr.\n**Situation:** Owner wants 5yr exclusive.\n**Goal:** 2yr non-exclusive.", "**Role:** Owner.\n**Motivation:** Needs lease for bank loan."),
+        ("Logistics Demurrage", "Logistics", "Easy", "**Role:** Logistics Supt.\\n**Situation:** 3 day delay. $50k claim.\\n**Goal:** Pay $0.", "**Role:** Shipowner.\\n**Motivation:** Needs cash for fuel."),
+        ("Helicopter Fuel Surcharge", "Logistics", "Medium", "**Role:** Category Lead.\\n**Situation:** +10% fuel surcharge.\\n**Goal:** Floating mechanism only.", "**Role:** Heli Operator.\\n**Motivation:** Zero margin without hike."),
+        ("Warehousing Exclusivity", "Logistics", "Easy", "**Role:** Supply Mgr.\\n**Situation:** Owner wants 5yr exclusive.\\n**Goal:** 2yr non-exclusive.", "**Role:** Owner.\\n**Motivation:** Needs lease for bank loan."),
         # CORPORATE
-        ("Consultancy Rate Hike", "Corporate", "Medium", "**Role:** HR Director.\n**Situation:** +10% rate ask.\n**Goal:** Flat rates.", "**Role:** Partner.\n**Motivation:** Salary inflation high."),
-        ("Office Lease Renewal", "Real Estate", "Hard", "**Role:** Facilities Mgr.\n**Situation:** +20% rent ask.\n**Goal:** Flat or move.", "**Role:** Landlord.\n**Motivation:** Bluffing about other tenant."),
-        ("Travel Agency Rebate", "Corporate", "Easy", "**Role:** Procurement Lead.\n**Situation:** New Agency.\n**Goal:** 3% rebate.", "**Role:** Agency Rep.\n**Motivation:** Thin margins. 1% max."),
+        ("Consultancy Rate Hike", "Corporate", "Medium", "**Role:** HR Director.\\n**Situation:** +10% rate ask.\\n**Goal:** Flat rates.", "**Role:** Partner.\\n**Motivation:** Salary inflation high."),
+        ("Office Lease Renewal", "Real Estate", "Hard", "**Role:** Facilities Mgr.\\n**Situation:** +20% rent ask.\\n**Goal:** Flat or move.", "**Role:** Landlord.\\n**Motivation:** Bluffing about other tenant."),
+        ("Travel Agency Rebate", "Corporate", "Easy", "**Role:** Procurement Lead.\\n**Situation:** New Agency.\\n**Goal:** 3% rebate.", "**Role:** Agency Rep.\\n**Motivation:** Thin margins. 1% max."),
         # LEGAL
-        ("Pollution Liability Cap", "Legal", "Hard", "**Role:** Counsel.\n**Situation:** Wants $5M cap.\n**Goal:** Unlimited or $50M.", "**Role:** Owner.\n**Motivation:** Insurance limit is $10M."),
-        ("JV Partner Approval", "Governance", "Hard", "**Role:** Asset Mgr.\n**Situation:** Sole-source $2M.\n**Goal:** Partner approval.", "**Role:** Partner.\n**Motivation:** Suspects gold-plating."),
-        ("Force Majeure Claim", "Legal", "Expert", "**Role:** Contract Mgr.\n**Situation:** Supplier declares FM (Storm).\n**Goal:** Reject FM.", "**Role:** Supplier.\n**Motivation:** Factory damaged."),
-        ("IP Ownership Dispute", "R&D", "Hard", "**Role:** R&D Lead.\n**Situation:** Joint dev.\n**Goal:** We own IP.", "**Role:** Startup CEO.\n**Motivation:** IP is only asset."),
+        ("Pollution Liability Cap", "Legal", "Hard", "**Role:** Counsel.\\n**Situation:** Wants $5M cap.\\n**Goal:** Unlimited or $50M.", "**Role:** Owner.\\n**Motivation:** Insurance limit is $10M."),
+        ("JV Partner Approval", "Governance", "Hard", "**Role:** Asset Mgr.\\n**Situation:** Sole-source $2M.\\n**Goal:** Partner approval.", "**Role:** Partner.\\n**Motivation:** Suspects gold-plating."),
+        ("Force Majeure Claim", "Legal", "Expert", "**Role:** Contract Mgr.\\n**Situation:** Supplier declares FM (Storm).\\n**Goal:** Reject FM.", "**Role:** Supplier.\\n**Motivation:** Factory damaged."),
+        ("IP Ownership Dispute", "R&D", "Hard", "**Role:** R&D Lead.\\n**Situation:** Joint dev.\\n**Goal:** We own IP.", "**Role:** Startup CEO.\\n**Motivation:** IP is only asset."),
         # ESG
-        ("Local Content Quota", "ESG", "Medium", "**Role:** Content Mgr.\n**Situation:** 40% mandate.\n**Goal:** Enforce target.", "**Role:** Supplier.\n**Motivation:** Locals untrained."),
-        ("HSE Incident Reporting", "HSE", "Medium", "**Role:** HSE Mgr.\n**Situation:** Hidden Near Miss.\n**Goal:** Reset bonus.", "**Role:** Supervisor.\n**Motivation:** Protecting crew bonus."),
-        ("Green Energy Premium", "ESG", "Medium", "**Role:** Power Buyer.\n**Situation:** Buying renewable.\n**Goal:** <5% premium.", "**Role:** Generator.\n**Motivation:** High demand.")
+        ("Local Content Quota", "ESG", "Medium", "**Role:** Content Mgr.\\n**Situation:** 40% mandate.\\n**Goal:** Enforce target.", "**Role:** Supplier.\\n**Motivation:** Locals untrained."),
+        ("HSE Incident Reporting", "HSE", "Medium", "**Role:** HSE Mgr.\\n**Situation:** Hidden Near Miss.\\n**Goal:** Reset bonus.", "**Role:** Supervisor.\\n**Motivation:** Protecting crew bonus."),
+        ("Green Energy Premium", "ESG", "Medium", "**Role:** Power Buyer.\\n**Situation:** Buying renewable.\\n**Goal:** <5% premium.", "**Role:** Generator.\\n**Motivation:** High demand.")
     ]
     c.executemany('INSERT INTO scenarios (title, category, difficulty, user_brief, system_persona) VALUES (?,?,?,?,?)', data)
     conn.commit()
