@@ -6,7 +6,6 @@ from fpdf import FPDF
 from pydantic import BaseModel
 
 # --- 1. AUTHENTICATION SETUP (Cloud Compatible) ---
-# Try to import the Google GenAI library
 try:
     from google import genai
     from google.genai import types
@@ -16,7 +15,7 @@ except ImportError:
 
 # --- 2. APP CONFIGURATION ---
 st.set_page_config(
-    page_title="Procurement Pro",
+    page_title="Procurement Simulator Pro",
     layout="wide",
     page_icon="💼",
     initial_sidebar_state="expanded"
@@ -31,18 +30,18 @@ if "session_id" not in st.session_state:
 # --- 4. CONNECT TO AI (API Key Support) ---
 @st.cache_resource
 def get_client():
-    # 1. Try getting key from Streamlit Secrets (Best for Cloud)
+    # 1. Try getting key from Environment Variable (Best for Cloud)
     api_key = os.environ.get("GEMINI_API_KEY")
     
     if not api_key:
         try:
-            # Fallback for local testing (Secrets file)
+            # Fallback for local testing (Streamlit Secrets)
             api_key = st.secrets["GEMINI_API_KEY"]
         except:
             return None
 
     try:
-        # Initialize Client with API Key
+        # Initialize Client
         return genai.Client(api_key=api_key, http_options={'api_version': 'v1alpha'})
     except Exception as e:
         print(f"Auth Error: {e}")
@@ -50,8 +49,8 @@ def get_client():
 
 client = get_client()
 
-# --- 5. DATA LAYER (20 SCENARIOS) ---
-DB_FILE = 'procurement_ultimate.db'
+# --- 5. DATA LAYER (Grouped & Versioned) ---
+DB_FILE = 'procurement_sim_v01.db'
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -66,25 +65,27 @@ def init_db():
         system_persona TEXT
     )''')
     
-    # THE MASTER LIST OF 20 SCENARIOS
+    # MASTER LIST: Grouped by Category for better UI organization
     data = [
-        # --- CONSTRUCTION & CAPEX ---
+        # --- CONSTRUCTION ---
         ("EPC Steel Variation Claim", "Construction", "Hard", "**Role:** Project Director.\n**Situation:** Contractor claims $5M for steel price hikes on LSTK contract.\n**Goal:** Reject price increase. Protect schedule.", "**Role:** Contractor PM.\n**Motivation:** Facing liquidity issues. Need cash or will slow down."),
+        ("Camp Construction Delay", "Construction", "Medium", "**Role:** Site Mgr.\n**Situation:** Camp delivery delayed 2 months.\n**Goal:** Demand acceleration at contractor cost.", "**Role:** Construction Lead.\n**Motivation:** Weather caused delays (Force Majeure?). You won't pay for acceleration."),
+        
+        # --- DRILLING & PRODUCTION ---
         ("Deepwater Rig Rate", "Drilling", "Medium", "**Role:** Wells Lead.\n**Situation:** Oil price drop. Rig rates down 30%.\n**Goal:** Renegotiate rate down 20%. Offer 1-yr extension.", "**Role:** Rig Contractor.\n**Motivation:** Terrified of stacking the rig. Act tough but need the deal."),
         ("FPSO Termination Threat", "Production", "Expert", "**Role:** Asset Mgr.\n**Situation:** FPSO uptime 85% (Target 95%).\n**Goal:** Get remedial plan or threaten Default Notice.", "**Role:** FPSO Operator.\n**Motivation:** Parts stuck in customs. Terrified of losing contract."),
-        ("Camp Construction Delay", "Construction", "Medium", "**Role:** Site Mgr.\n**Situation:** Camp delivery delayed 2 months.\n**Goal:** Demand acceleration at contractor cost.", "**Role:** Construction Lead.\n**Motivation:** Weather caused delays (Force Majeure?). You won't pay for acceleration."),
         
         # --- IT & SOFTWARE ---
         ("SaaS Renewal Hike", "IT", "Medium", "**Role:** IT Buyer.\n**Situation:** Vendor demands 15% hike.\n**Goal:** Cap at 3% (CPI). Remove auto-renewal.", "**Role:** Sales VP.\n**Motivation:** Need to hit quarterly target. Can trade price for 3-year term."),
         ("Software License Audit", "IT", "Hard", "**Role:** CIO.\n**Situation:** Vendor claims $2M in unlicensed usage.\n**Goal:** Settle for <$200k. Prove usage data is wrong.", "**Role:** Compliance Auditor.\n**Motivation:** Your bonus depends on the penalty size. You have 'proof'."),
         ("Data Breach Compensation", "IT/Legal", "Expert", "**Role:** Legal Counsel.\n**Situation:** Cloud provider leaked employee data.\n**Goal:** Secure 1-year free service + Credit Monitoring.", "**Role:** Cloud Provider.\n**Motivation:** Deny negligence. Limit liability to 1 month fees (standard clause)."),
         
-        # --- LOGISTICS & OPERATIONS ---
+        # --- LOGISTICS ---
         ("Logistics Demurrage", "Logistics", "Easy", "**Role:** Logistics Supt.\n**Situation:** Vessel delayed 3 days. Owner claims $50k.\n**Goal:** Pay $0. Delay was crane breakdown.", "**Role:** Shipowner.\n**Motivation:** Blame 'Port Congestion'. Need cash for fuel."),
         ("Helicopter Fuel Surcharge", "Logistics", "Medium", "**Role:** Category Lead.\n**Situation:** Provider wants 10% fuel surcharge.\n**Goal:** Agree to floating mechanism, not fixed hike.", "**Role:** Heli Operator.\n**Motivation:** Fuel prices spiked. Margins are zero without this."),
         ("Warehousing Exclusivity", "Logistics", "Easy", "**Role:** Supply Base Mgr.\n**Situation:** Warehouse owner wants 5-year exclusive deal.\n**Goal:** Agree to 2 years, no exclusivity.", "**Role:** Warehouse Owner.\n**Motivation:** Need long lease to secure bank loan."),
         
-        # --- CORPORATE & STRATEGY ---
+        # --- CORPORATE ---
         ("Consultancy Rate Hike", "Corporate", "Medium", "**Role:** HR Director.\n**Situation:** Strategy firm wants +10% rate increase.\n**Goal:** Hold rates flat. Offer more volume/projects.", "**Role:** Partner.\n**Motivation:** Salary inflation is high. Cannot keep staff without rate hike."),
         ("Office Lease Renewal", "Real Estate", "Hard", "**Role:** Facilities Mgr.\n**Situation:** Landlord wants 20% rent hike.\n**Goal:** Flat renewal or we move to suburbs.", "**Role:** Landlord.\n**Motivation:** Market is hot. Have another tenant lined up (bluff?)."),
         ("Travel Agency Rebate", "Corporate", "Easy", "**Role:** Procurement Lead.\n**Situation:** selecting new Travel Agency.\n**Goal:** Secure 3% rebate on all volume.", "**Role:** Agency Rep.\n**Motivation:** Margins are thin. Can offer 1% max."),
@@ -110,7 +111,7 @@ if 'db_initialized' not in st.session_state:
 
 def get_scenarios():
     conn = sqlite3.connect(DB_FILE)
-    return conn.cursor().execute("SELECT id, title, category, difficulty FROM scenarios").fetchall()
+    return conn.cursor().execute("SELECT id, title, category, difficulty FROM scenarios ORDER BY category, title").fetchall()
 
 def get_details(sid):
     conn = sqlite3.connect(DB_FILE)
@@ -158,17 +159,19 @@ with st.sidebar:
     # 🎨 CUSTOM BRANDING
     st.markdown("""
         <style>
-        .big-font { font-size: 26px !important; font-weight: 800; color: #154360; margin-bottom: 10px; }
+        .big-font { font-size: 26px !important; font-weight: 800; color: #154360; margin-bottom: 5px; }
+        .version-font { font-size: 12px; color: #888; margin-bottom: 15px; }
         .stButton button { width: 100%; border-radius: 5px; }
         </style>
-        <div class="big-font">Procurement Pro</div>
+        <div class="big-font">Procurement Simulator Pro</div>
+        <div class="version-font">Version 0.1 | Enterprise Edition</div>
         """, unsafe_allow_html=True)
     
-    st.caption("Advanced Negotiation Simulator v3.0")
     st.markdown("---")
     
     # SCENARIO SELECTOR
     scenarios = get_scenarios()
+    # Format: "Category | Title (Diff)"
     options = {f"{s[2]} | {s[1]} ({s[3]})": s[0] for s in scenarios}
     selected_label = st.selectbox("Select Mission", list(options.keys()))
     selected_id = options[selected_label]
@@ -198,6 +201,10 @@ with st.sidebar:
     if st.button("🔄 Reset Session", type="primary"):
         st.session_state.messages = []
         st.rerun()
+
+    # DISCLAIMER
+    st.markdown("---")
+    st.caption("**Disclaimer:** This application is a training simulation powered by AI. All scenarios, personas, and dialogues are fictional. It does not constitute professional legal, financial, or procurement advice.")
 
 # MAIN AREA
 st.markdown(f"### {selected_label.split('|')[1].strip()}") 
