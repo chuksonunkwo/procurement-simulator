@@ -1,5 +1,5 @@
 # ======================================================
-# 🏆 PROCUREMENT SIMULATOR PRO: GOLDEN MASTER (v1.0)
+# 🏆 PROCUREMENT SIMULATOR PRO: FINAL PRODUCTION BUILD
 # ======================================================
 import os
 import time
@@ -20,8 +20,8 @@ print("📄 Generating requirements.txt...")
 with open("requirements.txt", "w") as f:
     f.write("streamlit\ngoogle-genai\nsqlalchemy\nfpdf\nrequests\npydantic\n")
 
-# --- 4. GENERATE APP.PY (Syntax-Safe Version) ---
-print("📝 Writing Application Code (v1.0)...")
+# --- 4. GENERATE APP.PY (Clean Login Screen) ---
+print("📝 Writing Application Code...")
 
 app_code = r'''
 import streamlit as st
@@ -58,7 +58,7 @@ if "authenticated" not in st.session_state:
 if not st.session_state.authenticated:
     st.markdown("""
         <style>
-        .lock-box { text-align: center; margin-top: 50px; padding: 40px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin-left: auto; margin-right: auto; }
+        .lock-box { text-align: center; margin-top: 50px; padding: 40px; border: 1px solid #ddd; border-radius: 10px; max-width: 500px; margin-left: auto; margin-right: auto; }
         </style>
         <div class="lock-box">
             <h1>🔒 Procurement Simulator Pro</h1>
@@ -68,13 +68,10 @@ if not st.session_state.authenticated:
     
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        license_input = st.text_input("License Key", placeholder="Enter Key or 'admin-bypass'")
-        # API Key input for users who haven't set Env Vars
-        api_input = st.text_input("Google API Key (Optional)", type="password")
+        # CLEAN LOGIN: Only License Key is shown
+        license_input = st.text_input("License Key", placeholder="Enter your Gumroad Key")
         
         if st.button("Unlock Access", type="primary", use_container_width=True):
-            if api_input: os.environ["GEMINI_API_KEY"] = api_input
-            
             if check_gumroad_license(license_input):
                 st.session_state.authenticated = True
                 st.success("Access Granted.")
@@ -111,7 +108,6 @@ def init_db():
     c.execute("DROP TABLE IF EXISTS scenarios")
     c.execute("CREATE TABLE scenarios (id INTEGER PRIMARY KEY, title TEXT, category TEXT, difficulty TEXT, user_brief TEXT, system_persona TEXT)")
     
-    # SAFER DATA INSERTION
     data = [
         ("EPC Steel Variation Claim", "Construction", "Hard", "**Role:** Project Director.\n**Situation:** Contractor claims $5M for steel price hikes.\n**Goal:** Reject hike.", "**Role:** Contractor PM.\n**Motivation:** Needs cash for liquidity."),
         ("Camp Construction Delay", "Construction", "Medium", "**Role:** Site Mgr.\n**Situation:** Delivery delayed 2 months.\n**Goal:** Demand acceleration.", "**Role:** Construction Lead.\n**Motivation:** Weather delay (FM). Won't pay acceleration."),
@@ -205,7 +201,7 @@ with st.sidebar:
 
 # MAIN CHAT
 st.markdown(f"### {selected_label.split('|')[1].strip()}") 
-if not client: st.error("⚠️ AI Key Missing. Please enter it in the Lock Screen or set GEMINI_API_KEY env var."); st.stop()
+if not client: st.error("⚠️ AI Key Missing. Check Env Vars."); st.stop()
 
 for msg in st.session_state.messages:
     avatar = "👤" if msg["role"] == "user" else "👔"
@@ -264,7 +260,7 @@ for i in range(10):
             url_match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", content)
             if url_match:
                 print(f"\n✅ YOUR APP URL: {url_match.group(0)}\n")
-                print("🔑 ADMIN KEY: Use 'admin-bypass' to unlock.")
+                print("🔑 Use 'admin-bypass' to unlock (or a real Gumroad key).")
                 found_url = True
                 break
     except: pass
